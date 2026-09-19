@@ -431,10 +431,6 @@ body:before{
   import {
     getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  /* ============================================================
-     ↓↓↓  ВСТАВЬТЕ СЮДА ВАШ firebaseConfig ИЗ ШАГА B  ↓↓↓
-     ============================================================ */
   const firebaseConfig = {
   apiKey: "AIzaSyCebBAxkonsKhhU3JIJnJZA2gAmagjsYU8",
   authDomain: "timeline-hist.firebaseapp.com",
@@ -444,10 +440,6 @@ body:before{
   appId: "1:236225190502:web:082f859be6a63d54776ba7",
   measurementId: "G-F723YWRK95"
   };
-  /* ============================================================
-     ↑↑↑  КОНЕЦ ВАШЕГО БЛОКА  ↑↑↑
-     ============================================================ */
-
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const fs   = getFirestore(app);
