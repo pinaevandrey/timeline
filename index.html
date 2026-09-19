@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Лента времени</title>
+<style>
+:root{
+  --bg:#eef1f7;
+  --ink:#252936;
+  --muted:#70768a;
+  --glass:rgba(255,255,255,.42);
+  --glass-strong:rgba(255,255,255,.68);
+  --border:rgba(255,255,255,.72);
+  --purple:#7657ee;
+  --purple2:#9b78ff;
+  --red:#e45768;
+  --red2:#ff7b88;
+  --shadow:0 18px 45px rgba(72,68,104,.16), inset 0 1px 0 rgba(255,255,255,.85);
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;font-family:"Segoe UI",Inter,Arial,sans-serif;color:var(--ink)}
+body{
+  overflow:hidden;
+  background:
+    radial-gradient(circle at 15% 10%,rgba(255,214,205,.72),transparent 31%),
+    radial-gradient(circle at 82% 18%,rgba(193,215,255,.65),transparent 30%),
+    radial-gradient(circle at 78% 85%,rgba(188,239,255,.58),transparent 28%),
+    linear-gradient(135deg,#f5f1f0,#e9eef7 55%,#f5edf4);
+}
+body:before{
+  content:"";position:fixed;inset:-20%;
+  background:radial-gradient(circle at 50% 50%,rgba(255,255,255,.34),transparent 45%);
+  pointer-events:none;
+}
+.header{
+  height:76px;padding:18px 28px;display:flex;align-items:center;
+  position:relative;z-index:50;justify-content:space-between;gap:14px;
+}
+.header h1{margin:0;font-size:28px;font-weight:700;letter-spacing:-.7px}
+.toolbar{
+  position:relative;z-index:45;margin:0 24px 12px;padding:10px 12px;
+  display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  background:var(--glass);border:1px solid var(--border);border-radius:24px;
+  box-shadow:var(--shadow);backdrop-filter:blur(24px) saturate(135%);
+  -webkit-backdrop-filter:blur(24px) saturate(135%);
+}
+.glass-btn,.track-tab{
+  border:1px solid rgba(255,255,255,.78);
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.35));
+  color:#353847;padding:10px 15px;border-radius:18px;cursor:pointer;
+  box-shadow:0 8px 20px rgba(72,68,104,.10),inset 0 1px 0 #fff;
+  font:600 13px inherit;transition:.2s ease;white-space:nowrap;
+}
+.glass-btn:hover,.track-tab:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(72,68,104,.16),inset 0 1px 0 #fff}
+.icon-btn{width:42px;height:38px;padding:0;font-size:21px}
+.primary{background:linear-gradient(135deg,rgba(118,87,238,.92),rgba(155,120,255,.78));color:#fff;text-shadow:0 1px 3px rgba(40,25,100,.22)}
+.danger{background:linear-gradient(135deg,rgba(255,255,255,.75),rgba(255,220,225,.48));color:#c63d4f}
+.pdf{background:linear-gradient(135deg,rgba(213,229,255,.72),rgba(255,255,255,.45))}
+.save{background:linear-gradient(135deg,rgba(118,87,238,.92),rgba(155,120,255,.78));color:#fff}
+.my{background:linear-gradient(135deg,rgba(188,239,255,.75),rgba(255,255,255,.5));color:#2d6a8a}
+.zoom-info{min-width:78px;text-align:center;color:#666b7d;font-size:12px;font-weight:600}
+.spacer{flex:1}
+.switcher{
+  display:flex;gap:7px;padding:5px;border-radius:20px;
+  background:rgba(255,255,255,.3);border:1px solid rgba(255,255,255,.6)
+}
+.track-tab{padding:8px 13px;border-radius:15px;background:transparent;box-shadow:none;border-color:transparent}
+.track-tab.active.world{background:linear-gradient(135deg,rgba(118,87,238,.9),rgba(155,120,255,.76));color:#fff}
+.track-tab.active.russia{background:linear-gradient(135deg,rgba(228,87,104,.92),rgba(255,123,136,.76));color:#fff}
+.wrap{
+  position:absolute;left:0;right:0;top:135px;bottom:0;overflow:auto;
+  cursor:grab;padding-bottom:25px;
+}
+.wrap.drag{cursor:grabbing}
+.scene{
+  position:relative;min-height:300px;
+  background:rgba(255,255,255,.15);
+  padding-left:1.5cm;
+  padding-right:1.5cm;
+  box-sizing:content-box;
+}
+.track{
+  position:absolute;left:0;height:120px;z-index:2;
+}
+.track.world{top:30%;}.track.russia{top:70%}
+.line{
+  position:absolute;left:0;top:50%;height:5px;border-radius:8px;
+  box-shadow:0 0 16px rgba(0,0,0,.13),0 0 35px currentColor;
+}
+.world .line{background:linear-gradient(90deg,var(--purple),var(--purple2));color:rgba(118,87,238,.35)}
+.russia .line{background:linear-gradient(90deg,var(--red),var(--red2));color:rgba(228,87,104,.32)}
+.russia .line:before{
+  content:"";position:absolute;right:100%;width:0;height:100%;
+}
+.track-name{
+  display:none;
+}
+.tick{position:absolute;top:50%;width:2px;height:15px;transform:translateY(-50%);z-index:3;border-radius:4px}
+.world .tick{background:var(--purple)}.russia .tick{background:var(--red)}
+.tick-label{position:absolute;top:50%;transform:translate(-50%,13px);font-size:12px;font-weight:700;white-space:nowrap;z-index:3}
+.world .tick-label{color:#6246d8}.russia .tick-label{color:#c83e52}
+.start-label{
+  position:absolute;top:50%;transform:translate(-50%,-42px);
+  font-size:11px;font-weight:700;white-space:nowrap;padding:5px 9px;border-radius:12px;
+  background:rgba(255,255,255,.52);border:1px solid rgba(255,255,255,.7);
+}
+.russia .start-label{color:#c83e52}
+.card{
+  position:absolute;width:220px;padding:11px;border-radius:20px;
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.38));
+  border:1px solid rgba(255,255,255,.82);box-shadow:var(--shadow);
+  backdrop-filter:blur(18px) saturate(135%);-webkit-backdrop-filter:blur(18px);
+  display:flex;flex-direction:column;gap:5px;z-index:10;transition:.2s ease;
+  transform:translateX(-50%);
+  cursor:pointer;
+}
+.card:hover{transform:translateX(-50%) translateY(-3px);z-index:20;box-shadow:0 25px 55px rgba(72,68,104,.22),inset 0 1px 0 #fff}
+.card.up{bottom:50%;margin-bottom:28px}.card.down{top:50%;margin-top:28px}
+.card:after{content:"";position:absolute;left:50%;width:2px;height:28px;transform:translateX(-50%);opacity:.8}
+.world .card:after{background:var(--purple)}.russia .card:after{background:var(--red)}
+.card.up:after{bottom:-28px}.card.down:after{top:-28px}
+.dot{
+  position:absolute;left:50%;width:12px;height:12px;border-radius:50%;
+  transform:translate(-50%,-50%);z-index:15;border:3px solid rgba(255,255,255,.9);
+  box-shadow:0 0 0 5px rgba(255,255,255,.14),0 3px 10px rgba(0,0,0,.15)
+}
+.card.up .dot{bottom:-36px}.card.down .dot{top:-36px}
+.world .dot{background:var(--purple)}.russia .dot{background:var(--red)}
+.acts{position:absolute;right:8px;top:7px;display:flex;gap:4px;opacity:0;transition:.2s}
+.card:hover .acts{opacity:1}
+.ib{
+  width:28px;height:28px;padding:0;border-radius:50%;border:1px solid rgba(255,255,255,.8);
+  background:rgba(255,255,255,.72);cursor:pointer;font-size:13px;box-shadow:0 5px 12px rgba(0,0,0,.08)
+}
+.ib.del{color:#d13e50}
+.ci{width:100%;height:105px;object-fit:cover;border-radius:13px;background:#e8e8ee}
+.cy{font-size:12px;font-weight:800}.world .cy{color:#6246d8}.russia .cy{color:#c83e52}
+.ct{font-size:15px;margin:0;font-weight:750;line-height:1.15}.cd{font-size:12px;color:#656b7c;margin:0;line-height:1.35}
+.empty{
+  position:absolute;left:50%;top:49%;transform:translate(-50%,-50%);
+  padding:18px 24px;border-radius:22px;background:rgba(255,255,255,.38);
+  border:1px solid rgba(255,255,255,.65);backdrop-filter:blur(14px);
+  color:#777c8e;font-size:14px;box-shadow:var(--shadow);pointer-events:none;text-align:center;
+}
+.modal{
+  display:none;position:fixed;inset:0;background:rgba(70,72,88,.22);
+  z-index:1000;justify-content:center;align-items:center;padding:20px;
+  backdrop-filter:blur(8px)
+}
+.modal.on{display:flex}
+.mc{
+  width:470px;max-width:96%;max-height:92vh;overflow:auto;padding:25px;border-radius:28px;
+  background:linear-gradient(145deg,rgba(255,255,255,.78),rgba(255,255,255,.5));
+  border:1px solid rgba(255,255,255,.88);box-shadow:0 30px 80px rgba(55,54,80,.24),inset 0 1px 0 #fff;
+  backdrop-filter:blur(25px) saturate(140%)
+}
+.mc h2{margin:0 0 18px;font-size:22px}
+.fg{margin-bottom:14px}.fg label{display:block;margin-bottom:6px;font-size:12px;font-weight:700;color:#555a6b}
+.fg input,.fg textarea,.fg select{
+  width:100%;padding:11px 12px;border-radius:14px;border:1px solid rgba(180,183,198,.35);
+  background:rgba(255,255,255,.64);outline:none;font:14px inherit;color:var(--ink);
+  box-shadow:inset 0 1px 3px rgba(80,80,100,.04)
+}
+.fg input:focus,.fg textarea:focus,.fg select:focus{border-color:rgba(118,87,238,.5);box-shadow:0 0 0 4px rgba(118,87,238,.1)}
+.year-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.ma{display:flex;justify-content:flex-end;gap:9px;margin-top:18px}
+.cancel{background:rgba(255,255,255,.55)}
+.hint{font-size:12px;color:#7d8292;line-height:1.4}
+.current-image{display:flex;gap:9px;align-items:center;margin-bottom:7px}
+.current-image img{width:70px;height:46px;object-fit:cover;border-radius:9px}
+.check{font-size:12px;display:flex;align-items:center;gap:7px}
+#pdfArea{display:none}
+
+/* ===== Боковая панель события ===== */
+.side-overlay{
+  position:fixed;inset:0;background:rgba(40,42,55,.28);
+  opacity:0;pointer-events:none;transition:opacity .25s ease;z-index:900;
+  backdrop-filter:blur(2px);
+}
+.side-overlay.on{opacity:1;pointer-events:auto}
+.side-panel{
+  position:fixed;top:0;right:0;height:100%;width:420px;max-width:92vw;
+  z-index:950;display:flex;flex-direction:column;
+  background:linear-gradient(160deg,rgba(255,255,255,.92),rgba(245,245,252,.86));
+  border-left:1px solid rgba(255,255,255,.9);
+  box-shadow:-24px 0 60px rgba(55,54,80,.22);
+  backdrop-filter:blur(26px) saturate(140%);
+  -webkit-backdrop-filter:blur(26px) saturate(140%);
+  transform:translateX(105%);
+  transition:transform .32s cubic-bezier(.22,.8,.28,1);
+}
+.side-panel.on{transform:translateX(0)}
+.sp-head{
+  padding:20px 20px 14px;display:flex;align-items:flex-start;gap:12px;
+  border-bottom:1px solid rgba(180,183,198,.28);
+}
+.sp-head .sp-year{font-size:12px;font-weight:800;margin-bottom:4px}
+.sp-head .sp-year.world{color:#6246d8}
+.sp-head .sp-year.russia{color:#c83e52}
+.sp-head h3{margin:0;font-size:19px;line-height:1.2;font-weight:750;flex:1}
+.sp-close{
+  width:34px;height:34px;flex:0 0 auto;border-radius:50%;border:1px solid rgba(255,255,255,.8);
+  background:rgba(255,255,255,.7);cursor:pointer;font-size:18px;line-height:1;
+  box-shadow:0 6px 14px rgba(0,0,0,.08);color:#555a6b;transition:.2s;
+}
+.sp-close:hover{background:#fff}
+.sp-body{padding:18px 20px 30px;overflow:auto;flex:1;font-size:14px;line-height:1.55;color:#3c4050}
+.sp-img{width:100%;max-height:220px;object-fit:cover;border-radius:16px;margin-bottom:14px;background:#e8e8ee}
+.sp-desc{font-size:13px;color:#656b7c;margin:0 0 14px;font-style:italic}
+.sp-details{white-space:pre-wrap;word-wrap:break-word}
+.sp-empty{color:#8a8f9f;font-size:13px}
+
+/* ===== Авторизация ===== */
+.auth-area{display:flex;gap:9px;align-items:center;flex-shrink:0}
+.auth-user{
+  display:flex;align-items:center;gap:9px;padding:7px 12px;border-radius:18px;
+  background:var(--glass-strong);border:1px solid var(--border);
+  box-shadow:0 8px 20px rgba(72,68,104,.10),inset 0 1px 0 #fff;
+  font-size:13px;font-weight:600;color:#353847;
+}
+.auth-user .avatar{
+  width:28px;height:28px;border-radius:50%;
+  background:linear-gradient(135deg,var(--purple),var(--purple2));
+  color:#fff;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:800;flex-shrink:0;
+}
+.auth-user .logout{
+  border:none;background:transparent;cursor:pointer;color:#c63d4f;
+  font-size:12px;font-weight:700;padding:0 0 0 4px;
+}
+
+/* ===== Список лент ===== */
+.my-list{display:flex;flex-direction:column;gap:10px;max-height:55vh;overflow:auto;padding-right:4px}
+.my-item{
+  padding:13px 15px;border-radius:16px;
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.4));
+  border:1px solid rgba(255,255,255,.8);
+  box-shadow:0 8px 20px rgba(72,68,104,.08),inset 0 1px 0 #fff;
+  display:flex;justify-content:space-between;align-items:center;gap:10px;
+}
+.my-item .info{flex:1;min-width:0}
+.my-item .name{font-weight:700;font-size:14px;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.my-item .meta{font-size:11px;color:#7d8292}
+.my-item .actions{display:flex;gap:6px;flex:0 0 auto}
+.my-item .actions button{
+  border:1px solid rgba(255,255,255,.8);background:rgba(255,255,255,.7);
+  border-radius:12px;padding:7px 11px;cursor:pointer;font:600 12px inherit;color:#353847;
+  box-shadow:0 5px 12px rgba(0,0,0,.06);transition:.15s;
+}
+.my-item .actions button:hover{background:#fff;transform:translateY(-1px)}
+.my-item .actions .del{color:#d13e50}
+.my-empty{text-align:center;color:#8a8f9f;font-size:13px;padding:25px 0}
+
+/* ===== Стилизованный скроллбар ===== */
+.wrap::-webkit-scrollbar,
+.side-panel::-webkit-scrollbar,
+.mc::-webkit-scrollbar,
+.sp-body::-webkit-scrollbar,
+.my-list::-webkit-scrollbar{
+  width:12px;
+  height:12px;
+}
+.wrap::-webkit-scrollbar-track,
+.side-panel::-webkit-scrollbar-track,
+.mc::-webkit-scrollbar-track,
+.sp-body::-webkit-scrollbar-track,
+.my-list::-webkit-scrollbar-track{
+  background:rgba(255,255,255,.28);
+  border-radius:20px;
+  border:1px solid rgba(255,255,255,.55);
+  box-shadow:inset 0 1px 3px rgba(72,68,104,.06);
+  margin:6px;
+}
+.wrap::-webkit-scrollbar-thumb,
+.side-panel::-webkit-scrollbar-thumb,
+.mc::-webkit-scrollbar-thumb,
+.sp-body::-webkit-scrollbar-thumb,
+.my-list::-webkit-scrollbar-thumb{
+  background:linear-gradient(145deg,rgba(118,87,238,.85),rgba(155,120,255,.65));
+  border-radius:20px;
+  border:2px solid rgba(255,255,255,.75);
+  box-shadow:0 6px 16px rgba(118,87,238,.28),inset 0 1px 0 rgba(255,255,255,.55);
+  background-clip:padding-box;
+  transition:.2s ease;
+}
+.wrap::-webkit-scrollbar-thumb:hover,
+.side-panel::-webkit-scrollbar-thumb:hover,
+.mc::-webkit-scrollbar-thumb:hover,
+.sp-body::-webkit-scrollbar-thumb:hover,
+.my-list::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(145deg,rgba(118,87,238,1),rgba(155,120,255,.85));
+  box-shadow:0 8px 22px rgba(118,87,238,.4),inset 0 1px 0 rgba(255,255,255,.7);
+}
+.wrap.russia-active::-webkit-scrollbar-thumb{
+  background:linear-gradient(145deg,rgba(228,87,104,.9),rgba(255,123,136,.7));
+  box-shadow:0 6px 16px rgba(228,87,104,.3),inset 0 1px 0 rgba(255,255,255,.55);
+}
+.wrap.russia-active::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(145deg,rgba(228,87,104,1),rgba(255,123,136,.85));
+  box-shadow:0 8px 22px rgba(228,87,104,.42),inset 0 1px 0 rgba(255,255,255,.7);
+}
+.wrap::-webkit-scrollbar-corner,
+.side-panel::-webkit-scrollbar-corner,
+.mc::-webkit-scrollbar-corner,
+.sp-body::-webkit-scrollbar-corner,
+.my-list::-webkit-scrollbar-corner{background:transparent}
+
+.wrap,.side-panel,.mc,.sp-body,.my-list{
+  scrollbar-width:thin;
+  scrollbar-color:rgba(118,87,238,.85) rgba(255,255,255,.28);
+}
+.wrap.russia-active{scrollbar-color:rgba(228,87,104,.9) rgba(255,255,255,.28)}
+
+@media print{
+ @page{size:A4 landscape;margin:10mm}
+ html,body{height:auto!important;overflow:visible!important;background:#fff!important}
+ body>*:not(#pdfArea){display:none!important}
+ #pdfArea{display:block!important}
+}
+@media(max-width:800px){
+ .header{height:64px;padding:14px 18px}.header h1{font-size:23px}
+ .toolbar{margin:0 12px 10px;border-radius:20px}
+ .wrap{top:125px}.card{width:190px}
+ .spacer{display:none}
+ .side-panel{width:100%}
+ .auth-user span.uname{display:none}
+}
+</style>
+</head>
+<body>
+<header class="header">
+  <h1>Лента времени</h1>
+  <div class="auth-area" id="authArea"></div>
+</header>
+
+<div class="toolbar">
+  <button class="glass-btn icon-btn" onclick="zoom(-1)" title="Уменьшить масштаб">−</button>
+  <button class="glass-btn icon-btn" onclick="zoom(1)" title="Увеличить масштаб">+</button>
+  <button class="glass-btn" onclick="zoomReset()">Сброс</button>
+  <div class="spacer"></div>
+  <button class="glass-btn primary" onclick="openEv()">＋ Добавить событие</button>
+  <button class="glass-btn pdf" onclick="openPdf()">⇩ PDF</button>
+  <button class="glass-btn danger" onclick="clearTrack()">Очистить ленту</button>
+  <button class="glass-btn save" id="saveBtn" onclick="openSaveModal()" style="display:none">💾 Сохранить</button>
+  <button class="glass-btn my" id="myBtn" onclick="openMyModal()" style="display:none">📁 Мои ленты</button>
+</div>
+
+<div class="wrap" id="wrap">
+  <div class="scene" id="scene">
+    <div class="track world" id="worldTrack">
+      <div class="line" id="worldLine"></div>
+    </div>
+    <div class="track russia" id="russiaTrack">
+      <div class="line" id="russiaLine"></div>
+    </div>
+	<div class="empty" id="empty">Выберите ленту и нажмите «Добавить событие»</div>
+  </div>
+</div>
+
+<!-- ===== Боковая панель ===== -->
+<div class="side-overlay" id="sideOverlay"></div>
+<aside class="side-panel" id="sidePanel">
+  <div class="sp-head">
+    <div style="flex:1">
+      <div class="sp-year" id="spYear"></div>
+      <h3 id="spTitle"></h3>
+    </div>
+    <button class="sp-close" id="spClose" title="Закрыть">×</button>
+  </div>
+  <div class="sp-body" id="spBody"></div>
+</aside>
+
+<div class="modal" id="evModal"><div class="mc">
+  <h2 id="mt">Новое событие</h2>
+  <form id="evForm">
+    <input type="hidden" id="eid">
+    <div class="fg">
+      <label>Лента</label>
+      <select id="trackSelect">
+        <option value="world">Мировая история</option>
+        <option value="russia">История России</option>
+      </select>
+    </div>
+    <div class="fg">
+      <label>Дата</label>
+      <div class="year-row">
+        <input type="number" id="y" required>
+        <select id="era">
+          <option value="ce">н.э.</option>
+          <option value="bce">до н.э.</option>
+        </select>
+      </div>
+      <div class="hint" id="yearHint">Допустимый диапазон: 2000 г. до н.э. — 2026 г.</div>
+    </div>
+    <div class="fg"><label>Заголовок</label><input type="text" id="t" required></div>
+    <div class="fg"><label>Краткое описание (на карточке)</label><textarea id="d" rows="2"></textarea></div>
+    <div class="fg">
+      <label>Подробная информация (только в панели)</label>
+      <textarea id="details" rows="6" placeholder="Полный текст, который откроется при клике на событие"></textarea>
+    </div>
+    <div class="fg"><label>Картинка</label>
+      <div class="current-image" id="cib" style="display:none">
+        <img id="cip"><label class="check"><input type="checkbox" id="rm"> Удалить текущее</label>
+      </div>
+      <input type="file" id="if" accept="image/*">
+      <input type="text" id="iu" placeholder="или URL изображения" style="margin-top:7px">
+    </div>
+    <div class="ma">
+      <button type="button" class="glass-btn cancel" onclick="closeEv()">Отмена</button>
+      <button type="submit" class="glass-btn primary" id="sb">Сохранить</button>
+    </div>
+  </form>
+</div></div>
+
+<div class="modal" id="pdfModal"><div class="mc">
+  <h2>Экспорт в PDF</h2>
+  <p class="hint">Будет экспортирована активная лента с событиями в выбранном диапазоне.</p>
+  <div class="fg">
+    <label>Диапазон</label>
+    <div class="year-row">
+      <input type="text" id="pf" placeholder="От">
+      <input type="text" id="pt" placeholder="До">
+    </div>
+    <div class="hint" id="pi"></div>
+  </div>
+  <div class="ma">
+    <button type="button" class="glass-btn cancel" onclick="closePdf()">Отмена</button>
+    <button type="button" class="glass-btn pdf" onclick="doExport()">Скачать PDF</button>
+  </div>
+</div></div>
+
+<!-- ===== Авторизация ===== -->
+<div class="modal" id="authModal"><div class="mc">
+  <h2 id="authTitle">Вход</h2>
+  <p class="hint" id="authHint">Введите email и пароль</p>
+  <form id="authForm">
+    <div class="fg">
+      <label>Email</label>
+      <input type="email" id="authEmail" required autocomplete="email">
+    </div>
+    <div class="fg">
+      <label>Пароль</label>
+      <input type="password" id="authPass" required minlength="4" autocomplete="current-password">
+    </div>
+    <div class="fg" id="authNameWrap" style="display:none">
+      <label>Имя (необязательно)</label>
+      <input type="text" id="authName" autocomplete="name">
+    </div>
+    <div class="ma">
+      <button type="button" class="glass-btn cancel" onclick="closeAuth()">Отмена</button>
+      <button type="submit" class="glass-btn primary" id="authSubmit">Войти</button>
+    </div>
+    <p class="hint" style="text-align:center;margin-top:12px">
+      <a href="#" id="authSwitch" style="color:#7657ee;font-weight:700;text-decoration:none">Нет аккаунта? Зарегистрироваться</a>
+    </p>
+  </form>
+</div></div>
+
+<!-- ===== Сохранить ленту ===== -->
+<div class="modal" id="saveModal"><div class="mc">
+  <h2>Сохранить ленту</h2>
+  <p class="hint">Лента будет сохранена в ваш аккаунт.</p>
+  <div class="fg">
+    <label>Название ленты</label>
+    <input type="text" id="saveName" placeholder="Например: Моя лента по истории России">
+  </div>
+  <div class="fg">
+    <label>Что сохраняем</label>
+    <select id="saveScope">
+      <option value="active">Только активную ленту</option>
+      <option value="both">Обе ленты (мир + Россия)</option>
+    </select>
+  </div>
+  <div class="ma">
+    <button type="button" class="glass-btn cancel" onclick="closeSaveModal()">Отмена</button>
+    <button type="button" class="glass-btn save" onclick="doSaveLenta()">Сохранить</button>
+  </div>
+</div></div>
+
+<!-- ===== Мои ленты ===== -->
+<div class="modal" id="myModal"><div class="mc">
+  <h2>Мои ленты</h2>
+  <div id="myList" class="my-list"></div>
+  <div class="ma">
+    <button type="button" class="glass-btn cancel" onclick="closeMyModal()">Закрыть</button>
+  </div>
+</div></div>
+
+<div id="pdfArea"></div>
+
+<script>
+(function(){
+'use strict';
+
+const MIN=-2000, MAX=2026, RUSSIA_START=862;
+const Z=[0.5,0.75,1,1.5,2,3,5,8,12,20,35];
+const SIDE_PADDING = 1.5 * 37.795;
+let zi=parseInt(localStorage.getItem('timeline-zi'),10);
+if(isNaN(zi)||zi<0||zi>=Z.length) zi=2;
+
+let activeTrack=localStorage.getItem('timeline-active')||'world';
+let db={world:[],russia:[]};
+try{ db=Object.assign(db,JSON.parse(localStorage.getItem('timeline-events')||'{}')); }catch(e){}
+if(!Array.isArray(db.world))db.world=[];
+if(!Array.isArray(db.russia))db.russia=[];
+
+let editingId=null;
+const scene=document.getElementById('scene'),wrap=document.getElementById('wrap');
+const empty=document.getElementById('empty');
+const evModal=document.getElementById('evModal'),pdfModal=document.getElementById('pdfModal');
+const evForm=document.getElementById('evForm'),trackSelect=document.getElementById('trackSelect');
+const yEl=document.getElementById('y'),eraEl=document.getElementById('era');
+const mt=document.getElementById('mt'),sb=document.getElementById('sb');
+const cib=document.getElementById('cib'),cip=document.getElementById('cip'),rm=document.getElementById('rm');
+const detailsEl=document.getElementById('details');
+
+const sidePanel=document.getElementById('sidePanel');
+const sideOverlay=document.getElementById('sideOverlay');
+const spYear=document.getElementById('spYear');
+const spTitle=document.getElementById('spTitle');
+const spBody=document.getElementById('spBody');
+
+function px(){return Z[zi]}
+function xFor(year){return (year-MIN)*px()}
+function startYear(){return activeTrack==='russia'?RUSSIA_START:MIN}
+function fmtYear(y){
+  if(y<0) return Math.abs(y)+' г. до н.э.';
+  return y+' г.';
+}
+function parseYear(){
+  const n=parseInt(yEl.value,10);
+  if(isNaN(n)) return NaN;
+  return eraEl.value==='bce' ? -Math.abs(n) : Math.abs(n);
+}
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+function save(){localStorage.setItem('timeline-events',JSON.stringify(db));render()}
+function saveState(){localStorage.setItem('timeline-zi',zi);localStorage.setItem('timeline-active',activeTrack)}
+
+function ticks(trackEl, track){
+  trackEl.querySelectorAll('.tick,.tick-label').forEach(e=>e.remove());
+  const p=px();
+  let step=p>=12?100:p>=5?250:p>=2?500:1000;
+  if(p>=20)step=50;if(p>=35)step=25;
+
+  const lowerBound = (track === 'russia') ? RUSSIA_START : MIN;
+  let startY = Math.ceil(lowerBound / step) * step;
+
+  for(let y = startY; y <= MAX; y += step){
+    if(y < lowerBound) continue;
+    const t=document.createElement('div');
+    t.className='tick';
+    t.style.left=(SIDE_PADDING + xFor(y))+'px';
+    trackEl.appendChild(t);
+    if(y === 0) continue;
+    const l=document.createElement('div');
+    l.className='tick-label';
+    l.textContent=fmtYear(y);
+    l.style.left=(SIDE_PADDING + xFor(y))+'px';
+    trackEl.appendChild(l);
+  }
+
+  if(track === 'russia'){
+    const existing862 = Array.from(trackEl.querySelectorAll('.tick-label')).some(
+      el => el.textContent === '862 г.'
+    );
+    if(!existing862){
+      const s=document.createElement('div');
+      s.className='tick';
+      s.style.left=(SIDE_PADDING + xFor(RUSSIA_START))+'px';
+      trackEl.appendChild(s);
+      const l=document.createElement('div');
+      l.className='tick-label';
+      l.textContent='862 г.';
+      l.style.left=(SIDE_PADDING + xFor(RUSSIA_START))+'px';
+      trackEl.appendChild(l);
+    }
+  }
+}
+
+function findEventById(id){
+  for(const k of ['world','russia']){
+    const ev=db[k].find(x=>String(x.id)===String(id));
+    if(ev) return {track:k, ev};
+  }
+  return null;
+}
+
+function openSidePanel(id){
+  const found=findEventById(id);
+  if(!found) return;
+  const {track, ev}=found;
+
+  spYear.textContent=fmtYear(ev.year);
+  spYear.className='sp-year '+(track==='world'?'world':'russia');
+  spTitle.textContent=ev.title||'';
+
+  let html='';
+  if(ev.image){
+    html+='<img class="sp-img" src="'+ev.image.replace(/"/g,'&quot;')+'" onerror="this.style.display=\'none\'">';
+  }
+  if(ev.desc){
+    html+='<p class="sp-desc">'+esc(ev.desc)+'</p>';
+  }
+  if(ev.details){
+    html+='<div class="sp-details">'+esc(ev.details)+'</div>';
+  }
+  if(!ev.details && !ev.desc && !ev.image){
+    html+='<div class="sp-empty">Подробная информация не добавлена.</div>';
+  }
+  spBody.innerHTML=html;
+
+  sidePanel.classList.add('on');
+  sideOverlay.classList.add('on');
+}
+window.closeSidePanel=function(){
+  sidePanel.classList.remove('on');
+  sideOverlay.classList.remove('on');
+}
+sideOverlay.onclick=closeSidePanel;
+document.getElementById('spClose').onclick=closeSidePanel;
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'){closeSidePanel();}
+});
+
+function renderTrack(track){
+  const el=document.getElementById(track+'Track');
+  el.querySelectorAll('.card').forEach(e=>e.remove());
+  const events=[...db[track]].sort((a,b)=>a.year-b.year);
+  events.forEach((ev,idx)=>{
+    const c=document.createElement('div');
+    c.className='card '+(idx%2===0?'up':'down');
+    c.style.left=(SIDE_PADDING + xFor(ev.year))+'px';
+    const img=ev.image?'<img class="ci" src="'+ev.image.replace(/"/g,'&quot;')+'" onerror="this.style.display=\'none\'">':'';
+    c.innerHTML='<div class="acts"><button class="ib" data-a="e">✎</button><button class="ib del" data-a="d">×</button></div>'+
+      img+'<div class="cy">'+fmtYear(ev.year)+'</div><h4 class="ct">'+esc(ev.title)+'</h4>'+
+      '<p class="cd">'+esc(ev.desc||'')+'</p><div class="dot"></div>';
+    c.querySelector('[data-a="e"]').onclick=e=>{e.stopPropagation();openEv(ev.id)};
+    c.querySelector('[data-a="d"]').onclick=e=>{e.stopPropagation();delEv(ev.id)};
+    c.addEventListener('click',e=>{
+      if(e.target.closest('.acts')) return;
+      openSidePanel(ev.id);
+    });
+    el.appendChild(c);
+  });
+}
+
+function render(){
+  wrap.classList.toggle('russia-active', activeTrack==='russia');
+  renderTrack('world');renderTrack('russia');
+  empty.style.display=(db[activeTrack].length===0?'block':'none');
+  const rLine=document.getElementById('russiaLine');
+  rLine.style.left=(SIDE_PADDING + xFor(RUSSIA_START))+'px';
+  rLine.style.width=((MAX-RUSSIA_START)*px())+'px';
+  document.getElementById('worldLine').style.left=SIDE_PADDING+'px';
+  document.getElementById('worldLine').style.width=((MAX-MIN)*px())+'px';
+  ticks(document.getElementById('worldTrack'),'world');
+  ticks(document.getElementById('russiaTrack'),'russia');
+}
+
+function apply(centerYear){
+  const contentWidth = (MAX - startYear()) * px() + 260;
+  const width = contentWidth + SIDE_PADDING * 2;
+  scene.style.width = width + 'px';
+  scene.style.height = '680px';
+  render();
+  if(centerYear !== undefined){
+    wrap.scrollLeft = Math.max(0, SIDE_PADDING + xFor(centerYear) - wrap.clientWidth / 2);
+  }
+  saveState();
+}
+
+window.setTrack=function(track){
+  activeTrack=track;
+  apply((startYear()+MAX)/2);
+  saveState();
+}
+window.zoom=function(d){
+  const n=Math.min(Z.length-1,Math.max(0,zi+d));if(n===zi)return;
+  const center=MIN+(wrap.scrollLeft - SIDE_PADDING + wrap.clientWidth/2)/px();
+  zi=n;apply(center);
+}
+window.zoomReset=function(){zi=2;apply((startYear()+MAX)/2)}
+window.clearTrack=function(){
+  const label=activeTrack==='world'?'мировую историю':'историю России';
+  if(!db[activeTrack].length)return;
+  if(!confirm('Удалить все события из ленты «'+label+'»?'))return;
+  db[activeTrack]=[];save();
+}
+
+window.openEv=function(id){
+  evForm.reset();editingId=null;rm.checked=false;cib.style.display='none';
+  if(id!==undefined){
+    const found=findEventById(id);if(!found)return;
+    const ev=found.ev;
+    editingId=ev.id;activeTrack=ev.track||found.track;
+    mt.textContent='Редактировать событие';sb.textContent='Сохранить изменения';
+    trackSelect.value=activeTrack;
+    const y=Math.abs(ev.year);yEl.value=y;eraEl.value=ev.year<0?'bce':'ce';
+    document.getElementById('t').value=ev.title;
+    document.getElementById('d').value=ev.desc||'';
+    detailsEl.value=ev.details||'';
+    if(ev.image){cib.style.display='flex';cip.src=ev.image}
+  }else{
+    mt.textContent='Новое событие';sb.textContent='Сохранить';trackSelect.value=activeTrack;
+  }
+  updateHint();
+  evModal.classList.add('on');
+}
+window.closeEv=function(){evModal.classList.remove('on');editingId=null}
+evModal.onclick=e=>{if(e.target===evModal)closeEv()};
+
+function updateHint(){
+  const track=trackSelect.value;
+  document.getElementById('yearHint').textContent=track==='russia'
+    ? 'Для красной ленты доступны события с 862 г. по 2026 г.'
+    : 'Для фиолетовой ленты: от 2000 г. до н.э. до 2026 г.';
+  if(track==='russia'){eraEl.value='ce';eraEl.disabled=true}
+  else eraEl.disabled=false;
+}
+trackSelect.onchange=updateHint;eraEl.onchange=updateHint;
+
+evForm.onsubmit=function(e){
+  e.preventDefault();
+  const track=trackSelect.value,y=parseYear(),t=document.getElementById('t').value.trim();
+  const d=document.getElementById('d').value.trim();
+  const det=detailsEl.value.trim();
+  if(isNaN(y)||y<MIN||y>MAX){alert('Укажите дату от 2000 г. до н.э. до 2026 г.');return}
+  if(track==='russia'&&y<RUSSIA_START){alert('История России начинается с 862 г.');return}
+  if(!t){alert('Введите заголовок события');return}
+  const f=document.getElementById('if'),u=document.getElementById('iu').value.trim(),remove=rm.checked;
+  const finish=image=>{
+    if(editingId!==null){
+      const found=findEventById(editingId);
+      if(!found)return;
+      const {track:oldTrack, ev}=found;
+      db[oldTrack]=db[oldTrack].filter(x=>String(x.id)!==String(editingId));
+      ev.year=y;ev.title=t;ev.desc=d;ev.details=det;ev.image=image;ev.track=track;
+      db[track].push(ev);
+    }else{
+      db[track].push({id:Date.now()+Math.random(),year:y,title:t,desc:d,details:det,image:image,track:track});
+    }
+    save();closeEv();apply(y);
+  };
+  if(f.files&&f.files[0]){
+    const rd=new FileReader();rd.onload=e=>finish(e.target.result);rd.readAsDataURL(f.files[0]);
+  }else if(u)finish(u);
+  else if(remove)finish(null);
+  else{
+    const found=findEventById(editingId);
+    finish(found?found.ev.image:null);
+  }
+};
+
+function delEv(id){
+  const found=findEventById(id);if(!found)return;
+  const {track, ev}=found;
+  if(!confirm('Удалить «'+ev.title+'»?'))return;
+  db[track]=db[track].filter(x=>String(x.id)!==String(id));
+  closeSidePanel();
+  save();
+}
+
+window.openPdf=function(){
+  const evs=db[activeTrack];if(!evs.length){alert('В активной ленте пока нет событий');return}
+  const ys=evs.map(e=>e.year);document.getElementById('pf').value=fmtYear(Math.min(...ys));
+  document.getElementById('pt').value=fmtYear(Math.max(...ys));updatePi();pdfModal.classList.add('on');
+}
+window.closePdf=function(){pdfModal.classList.remove('on')}
+pdfModal.onclick=e=>{if(e.target===pdfModal)closePdf()}
+document.getElementById('pf').oninput=updatePi;document.getElementById('pt').oninput=updatePi;
+
+function parsePdfDate(v){
+  v=String(v).trim().toLowerCase();
+  const m=v.match(/(-?[\d\s]+)\s*(до\s*н\.?э\.?|н\.?э\.?)?/);
+  if(!m)return NaN;
+  const n=parseInt(m[1].replace(/\s/g,''),10);if(isNaN(n))return NaN;
+  return (m[2]&&m[2].includes('до'))?-Math.abs(n):Math.abs(n);
+}
+function updatePi(){
+  const a=parsePdfDate(document.getElementById('pf').value),b=parsePdfDate(document.getElementById('pt').value);
+  document.getElementById('pi').textContent=(isNaN(a)||isNaN(b))?'Введите даты, например «2000 до н.э.» и «2026»':
+    'Событий в диапазоне: '+db[activeTrack].filter(e=>e.year>=Math.min(a,b)&&e.year<=Math.max(a,b)).length;
+}
+
+window.doExport=function(){
+  let f=parsePdfDate(document.getElementById('pf').value),t=parsePdfDate(document.getElementById('pt').value);
+  if(isNaN(f)||isNaN(t)){alert('Укажите оба года');return}
+  if(f>t)[f,t]=[t,f];
+  const list=db[activeTrack].filter(e=>e.year>=f&&e.year<=t).sort((a,b)=>a.year-b.year);
+  if(!list.length){alert('Нет событий в диапазоне');return}
+  const W=1100,H=500,rl=Math.max(1,t-f),PPY=W/rl;
+  const area=document.getElementById('pdfArea');area.innerHTML='';
+  const h=document.createElement('h1');h.textContent='Лента времени — '+(activeTrack==='world'?'Мировая история':'История России');
+  h.style.cssText='text-align:center;font-family:Segoe UI,Arial;color:#222;margin:0 0 5px;font-size:21px';
+  area.appendChild(h);
+  const sub=document.createElement('div');sub.textContent=fmtYear(f)+' — '+fmtYear(t)+' · событий: '+list.length;
+  sub.style.cssText='text-align:center;color:#888;font-size:11px;margin-bottom:15px';area.appendChild(sub);
+  const sc=document.createElement('div');sc.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;margin:0 auto;background:#fafafa;border:1px solid #ddd';
+  const ln=document.createElement('div');ln.style.cssText='position:absolute;left:0;top:'+(H/2-2)+'px;width:'+W+'px;height:4px;background:'+(activeTrack==='world'?'#7657ee':'#e45768');sc.appendChild(ln);
+  const step=rl<=30?5:rl<=100?10:rl<=300?25:rl<=800?50:rl<=1600?100:250;
+  for(let y=Math.ceil(f/step)*step;y<=t;y+=step){
+    const x=(y-f)*PPY,tk=document.createElement('div');tk.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2-8)+'px;width:1px;height:16px;background:#777';sc.appendChild(tk);
+    if(y === 0) continue;
+    const lb=document.createElement('div');lb.textContent=fmtYear(y);lb.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2+12)+'px;transform:translateX(-50%);font-size:8px;color:#666;white-space:nowrap';sc.appendChild(lb);
+  }
+  list.forEach((ev,idx)=>{
+    const x=(ev.year-f)*PPY,c=document.createElement('div');c.style.cssText='position:absolute;left:'+(x-48)+'px;width:96px;padding:5px;background:#fff;border:1px solid #ddd;border-radius:6px;font-family:Segoe UI,Arial;'+(idx%2===0?'bottom:'+(H/2+15)+'px':'top:'+(H/2+15)+'px');
+    c.innerHTML='<div style="font-size:8px;color:'+(activeTrack==='world'?'#6246d8':'#c83e52')+';font-weight:700">'+fmtYear(ev.year)+'</div><div style="font-size:9px;font-weight:600;line-height:1.15">'+esc(ev.title)+'</div><div style="font-size:8px;color:#666;line-height:1.15">'+esc(ev.desc||'')+'</div>';
+    sc.appendChild(c);
+  });
+  area.appendChild(sc);setTimeout(()=>window.print(),200);
+};
+
+wrap.addEventListener('wheel',e=>{
+  if(e.ctrlKey||e.metaKey){e.preventDefault();zoom(e.deltaY<0?1:-1)}
+},{passive:false});
+let dn=false,sx=0,ss=0;
+wrap.addEventListener('mousedown',e=>{
+  if(e.target.closest('.card')||e.target.closest('button'))return;
+  dn=true;wrap.classList.add('drag');sx=e.pageX;ss=wrap.scrollLeft;
+});
+window.addEventListener('mouseup',()=>{dn=false;wrap.classList.remove('drag')});
+window.addEventListener('mousemove',e=>{if(!dn)return;e.preventDefault();wrap.scrollLeft=ss-(e.pageX-sx)});
+
+/* ============================================================
+   АВТОРИЗАЦИЯ И СОХРАНЕНИЕ ЛЕНТ
+   Демо-бэкенд на localStorage. Для реального API замените
+   методы объекта API на fetch-запросы к серверу.
+   ============================================================ */
+const API = {
+  _usersKey:'tl_users',
+  _sessionKey:'tl_session',
+  _lentasKey:'tl_lentas',
+
+  _users(){ try{return JSON.parse(localStorage.getItem(this._usersKey)||'{}')}catch(e){return {}} },
+  _saveUsers(u){ localStorage.setItem(this._usersKey, JSON.stringify(u)) },
+  _lentas(){ try{return JSON.parse(localStorage.getItem(this._lentasKey)||'{}')}catch(e){return {}} },
+  _saveLentas(l){ localStorage.setItem(this._lentasKey, JSON.stringify(l)) },
+
+  async register(email, password, name){
+    email = email.trim().toLowerCase();
+    const users = this._users();
+    if(users[email]) throw new Error('Пользователь с таким email уже существует');
+    users[email] = {email, password, name: name||email.split('@')[0], created: Date.now()};
+    this._saveUsers(users);
+    return this.login(email, password);
+  },
+
+  async login(email, password){
+    email = email.trim().toLowerCase();
+    const users = this._users();
+    const u = users[email];
+    if(!u || u.password !== password) throw new Error('Неверный email или пароль');
+    const token = 'demo_' + btoa(unescape(encodeURIComponent(email)) + ':' + Date.now());
+    const session = {email, name:u.name, token};
+    localStorage.setItem(this._sessionKey, JSON.stringify(session));
+    return session;
+  },
+
+  async logout(){
+    localStorage.removeItem(this._sessionKey);
+  },
+
+  currentUser(){
+    try{return JSON.parse(localStorage.getItem(this._sessionKey)||'null')}catch(e){return null}
+  },
+
+  async saveLenta(name, data){
+    const user = this.currentUser();
+    if(!user) throw new Error('Требуется вход');
+    const all = this._lentas();
+    if(!all[user.email]) all[user.email] = [];
+    const lenta = {
+      id: 'l_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
+      name,
+      data,
+      created: Date.now()
+    };
+    all[user.email].unshift(lenta);
+    this._saveLentas(all);
+    return lenta;
+  },
+
+  async getLentas(){
+    const user = this.currentUser();
+    if(!user) return [];
+    const all = this._lentas();
+    return all[user.email] || [];
+  },
+
+  async deleteLenta(id){
+    const user = this.currentUser();
+    if(!user) return;
+    const all = this._lentas();
+    if(!all[user.email]) return;
+    all[user.email] = all[user.email].filter(l => l.id !== id);
+    this._saveLentas(all);
+  }
+};
+
+let authMode = 'login';
+
+function renderAuthArea(){
+  const area = document.getElementById('authArea');
+  const user = API.currentUser();
+  const saveBtn = document.getElementById('saveBtn');
+  const myBtn = document.getElementById('myBtn');
+
+  if(user){
+    const initial = (user.name || user.email).charAt(0).toUpperCase();
+    area.innerHTML =
+      '<div class="auth-user">' +
+        '<div class="avatar">' + initial + '</div>' +
+        '<span class="uname">' + esc(user.name || user.email) + '</span>' +
+        '<button class="logout" onclick="doLogout()">Выйти</button>' +
+      '</div>';
+    saveBtn.style.display = '';
+    myBtn.style.display = '';
+  }else{
+    area.innerHTML =
+      '<button class="glass-btn" onclick="openAuth(\'login\')">Войти</button>' +
+      '<button class="glass-btn primary" onclick="openAuth(\'register\')">Зарегистрироваться</button>';
+    saveBtn.style.display = 'none';
+    myBtn.style.display = 'none';
+  }
+}
+
+window.openAuth = function(mode){
+  authMode = mode || 'login';
+  const title = document.getElementById('authTitle');
+  const hint = document.getElementById('authHint');
+  const submit = document.getElementById('authSubmit');
+  const nameWrap = document.getElementById('authNameWrap');
+  const switcher = document.getElementById('authSwitch');
+  const form = document.getElementById('authForm');
+  form.reset();
+  if(authMode === 'register'){
+    title.textContent = 'Регистрация';
+    hint.textContent = 'Создайте аккаунт, чтобы сохранять ленты времени';
+    submit.textContent = 'Зарегистрироваться';
+    nameWrap.style.display = '';
+    switcher.textContent = 'Уже есть аккаунт? Войти';
+  }else{
+    title.textContent = 'Вход';
+    hint.textContent = 'Введите email и пароль';
+    submit.textContent = 'Войти';
+    nameWrap.style.display = 'none';
+    switcher.textContent = 'Нет аккаунта? Зарегистрироваться';
+  }
+  document.getElementById('authModal').classList.add('on');
+};
+
+window.closeAuth = function(){
+  document.getElementById('authModal').classList.remove('on');
+};
+
+document.getElementById('authSwitch').onclick = function(e){
+  e.preventDefault();
+  openAuth(authMode === 'login' ? 'register' : 'login');
+};
+
+document.getElementById('authModal').onclick = function(e){
+  if(e.target === this) closeAuth();
+};
+
+document.getElementById('authForm').onsubmit = async function(e){
+  e.preventDefault();
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const name = document.getElementById('authName').value.trim();
+  const btn = document.getElementById('authSubmit');
+  const old = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Подождите…';
+  try{
+    if(authMode === 'register'){
+      await API.register(email, pass, name);
+    }else{
+      await API.login(email, pass);
+    }
+    closeAuth();
+    renderAuthArea();
+  }catch(err){
+    alert(err.message || 'Ошибка');
+  }finally{
+    btn.disabled = false; btn.textContent = old;
+  }
+};
+
+window.doLogout = async function(){
+  if(!confirm('Выйти из аккаунта?')) return;
+  await API.logout();
+  renderAuthArea();
+};
+
+window.openSaveModal = function(){
+  if(!API.currentUser()){ openAuth('login'); return; }
+  document.getElementById('saveName').value = 'Лента от ' + new Date().toLocaleDateString();
+  document.getElementById('saveModal').classList.add('on');
+};
+
+window.closeSaveModal = function(){
+  document.getElementById('saveModal').classList.remove('on');
+};
+
+document.getElementById('saveModal').onclick = function(e){
+  if(e.target === this) closeSaveModal();
+};
+
+window.doSaveLenta = async function(){
+  const name = document.getElementById('saveName').value.trim();
+  const scope = document.getElementById('saveScope').value;
+  if(!name){ alert('Введите название'); return; }
+  const data = {
+    activeTrack: activeTrack,
+    world: db.world,
+    russia: db.russia,
+    savedAt: Date.now()
+  };
+  try{
+    await API.saveLenta(name, scope === 'both' ? data : {
+      activeTrack: activeTrack,
+      [activeTrack]: db[activeTrack],
+      savedAt: Date.now()
+    });
+    closeSaveModal();
+    alert('Лента «' + name + '» сохранена!');
+  }catch(err){
+    alert(err.message || 'Не удалось сохранить');
+  }
+};
+
+window.openMyModal = async function(){
+  if(!API.currentUser()){ openAuth('login'); return; }
+  const list = document.getElementById('myList');
+  list.innerHTML = '<div class="my-empty">Загрузка…</div>';
+  document.getElementById('myModal').classList.add('on');
+  try{
+    const lentas = await API.getLentas();
+    if(!lentas.length){
+      list.innerHTML = '<div class="my-empty">У вас пока нет сохранённых лент.<br>Нажмите «💾 Сохранить», чтобы создать первую.</div>';
+      return;
+    }
+    list.innerHTML = lentas.map(l => {
+      const d = new Date(l.created);
+      const count = (l.data.world?l.data.world.length:0) + (l.data.russia?l.data.russia.length:0);
+      return '<div class="my-item">' +
+        '<div class="info">' +
+          '<div class="name">' + esc(l.name) + '</div>' +
+          '<div class="meta">' + d.toLocaleString('ru-RU') + ' · событий: ' + count + '</div>' +
+        '</div>' +
+        '<div class="actions">' +
+          '<button onclick="loadLenta(\'' + l.id + '\')">Открыть</button>' +
+          '<button class="del" onclick="removeLenta(\'' + l.id + '\')">Удалить</button>' +
+        '</div>' +
+      '</div>';
+    }).join('');
+  }catch(err){
+    list.innerHTML = '<div class="my-empty">Ошибка загрузки: ' + esc(err.message) + '</div>';
+  }
+};
+
+window.closeMyModal = function(){
+  document.getElementById('myModal').classList.remove('on');
+};
+
+document.getElementById('myModal').onclick = function(e){
+  if(e.target === this) closeMyModal();
+};
+
+window.loadLenta = async function(id){
+  const lentas = await API.getLentas();
+  const l = lentas.find(x => x.id === id);
+  if(!l) return;
+  if(!confirm('Загрузить ленту «' + l.name + '»? Текущие несохранённые изменения будут потеряны.')) return;
+  db.world = Array.isArray(l.data.world) ? l.data.world : [];
+  db.russia = Array.isArray(l.data.russia) ? l.data.russia : [];
+  if(l.data.activeTrack) activeTrack = l.data.activeTrack;
+  save();
+  closeMyModal();
+  apply((startYear()+MAX)/2);
+  alert('Лента «' + l.name + '» загружена');
+};
+
+window.removeLenta = async function(id){
+  if(!confirm('Удалить эту ленту?')) return;
+  await API.deleteLenta(id);
+  openMyModal();
+};
+
+/* ===== Инициализация ===== */
+renderAuthArea();
+apply((startYear()+MAX)/2);
+updateHint();
+})();
+</script>
+</body>
+</html>
