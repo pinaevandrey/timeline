@@ -777,24 +777,54 @@ window.logout = async function(){
 };
 
 window.saveTimeline = async function(){
-  if (!window.currentUser) { alert('Сначала войдите в аккаунт'); return; }
+  // Берём пользователя непосредственно из Firebase Auth, чтобы не попасть
+  // в состояние, когда UI уже обновился, а window.currentUser ещё не успел.
+  const user = window.__auth?.currentUser || window.currentUser;
+  if (!user) { alert('Сначала войдите в аккаунт'); return; }
+
   const defName = 'Лента от ' + new Date().toLocaleString('ru-RU');
   const name = prompt('Название ленты:', defName);
   if (name === null) return;
   const title = name.trim() || defName;
 
-  const { collection, addDoc, serverTimestamp, fs } = window.__fs;
   try {
-    await addDoc(collection(fs, 'timelines'), {
-      uid: window.currentUser.uid,
+    const { collection, addDoc, serverTimestamp, fs } = window.__fs;
+    const data = JSON.parse(JSON.stringify(db));
+    const payload = {
+      uid: user.uid,
       name: title,
-      data: JSON.parse(JSON.stringify(db)),
+      data,
       active: activeTrack,
       createdAt: serverTimestamp()
-    });
+    };
+
+    // Firestore ограничивает один документ размером примерно 1 MiB.
+    // Проверяем размер до отправки, чтобы вместо непонятной ошибки показать причину.
+    const bytes = new Blob([JSON.stringify(payload)]).size;
+    if (bytes >= 1000000) {
+      alert('Лента слишком большая для одного документа Firestore (' +
+        Math.round(bytes / 1024) + ' КБ). Обычно это происходит из-за больших изображений. ' +
+        'Уменьшите изображения в событиях и попробуйте снова.');
+      return;
+    }
+
+    await addDoc(collection(fs, 'timelines'), payload);
     alert('Лента «' + title + '» сохранена.');
   } catch (e) {
-    alert('Ошибка сохранения: ' + e.message);
+    console.error('Firestore save error:', e);
+    const code = e?.code || '';
+    let message = e?.message || String(e);
+
+    if (code === 'permission-denied') {
+      message = 'Firebase отклонил запись: нет разрешения Firestore для текущего пользователя. ' +
+        'Проверьте Rules для коллекции timelines.';
+    } else if (code === 'unauthenticated') {
+      message = 'Firebase считает пользователя неавторизованным. Выйдите и войдите в аккаунт снова.';
+    } else if (code === 'resource-exhausted' || /maximum.*size|too large|exceed/i.test(message)) {
+      message = 'Лента превышает допустимый размер документа Firestore. Уменьшите изображения в событиях.';
+    }
+
+    alert('Ошибка сохранения: ' + message);
   }
 };
 
