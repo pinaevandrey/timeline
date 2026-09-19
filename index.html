@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -169,7 +170,6 @@ body:before{
 .check{font-size:12px;display:flex;align-items:center;gap:7px}
 #pdfArea{display:none}
 
-/* === Стилизованный скроллбар === */
 .mc::-webkit-scrollbar,
 .side-panel-body::-webkit-scrollbar,
 .wrap::-webkit-scrollbar{width:9px;height:9px}
@@ -189,7 +189,6 @@ body:before{
 }
 .mc,.side-panel-body,.wrap{scrollbar-width:thin;scrollbar-color:rgba(118,87,238,.65) rgba(255,255,255,.25)}
 
-/* === Выплывающая панель события === */
 .side-panel{
   position:fixed;top:0;right:0;bottom:0;width:420px;max-width:92vw;
   background:linear-gradient(145deg,rgba(255,255,255,.86),rgba(255,255,255,.62));
@@ -228,7 +227,6 @@ body:before{
 }
 .side-panel-backdrop.on{opacity:1;pointer-events:auto}
 
-/* === Аккаунт === */
 .user-badge{
   display:none;align-items:center;gap:8px;padding:8px 14px;border-radius:18px;
   background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);
@@ -317,7 +315,6 @@ body:before{
   </div>
 </div>
 
-<!-- === Выплывающая панель события === -->
 <div class="side-panel-backdrop" id="panelBackdrop" onclick="closePanel()"></div>
 <aside class="side-panel" id="sidePanel" aria-hidden="true">
   <div class="side-panel-head">
@@ -385,7 +382,6 @@ body:before{
   </div>
 </div></div>
 
-<!-- === Модальное окно авторизации === -->
 <div class="modal" id="authModal"><div class="mc" style="width:420px">
   <h2 id="authTitle">Регистрация</h2>
   <div class="auth-tab-row">
@@ -413,7 +409,6 @@ body:before{
   </form>
 </div></div>
 
-<!-- === Модальное окно "Мои ленты" === -->
 <div class="modal" id="myModal"><div class="mc" style="width:520px">
   <h2>Мои ленты</h2>
   <div class="saved-list" id="savedList"></div>
@@ -424,13 +419,58 @@ body:before{
 
 <div id="pdfArea"></div>
 
+<!-- ============================================================
+     FIREBASE — НЕ ТРОГАЙТЕ НИЧЕГО КРОМЕ БЛОКА firebaseConfig !!!
+     ============================================================ -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+    signOut, onAuthStateChanged, updateProfile
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import {
+    getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  /* ============================================================
+     ↓↓↓  ВСТАВЬТЕ СЮДА ВАШ firebaseConfig ИЗ ШАГА B  ↓↓↓
+     ============================================================ */
+  const firebaseConfig = {
+  apiKey: "AIzaSyCebBAxkonsKhhU3JIJnJZA2gAmagjsYU8",
+  authDomain: "timeline-hist.firebaseapp.com",
+  projectId: "timeline-hist",
+  storageBucket: "timeline-hist.firebasestorage.app",
+  messagingSenderId: "236225190502",
+  appId: "1:236225190502:web:082f859be6a63d54776ba7",
+  measurementId: "G-F723YWRK95"
+  };
+  /* ============================================================
+     ↑↑↑  КОНЕЦ ВАШЕГО БЛОКА  ↑↑↑
+     ============================================================ */
+
+  const app  = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const fs   = getFirestore(app);
+
+  window.__auth = auth;
+  window.__fs   = { collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp, fs };
+  window.__fb   = { createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, updateProfile };
+
+  onAuthStateChanged(auth, (user) => {
+    window.currentUser = user
+      ? { uid: user.uid, email: user.email, name: user.displayName || user.email }
+      : null;
+    if (window.refreshAuthUI) window.refreshAuthUI();
+  });
+</script>
+
 <script>
 (function(){
 'use strict';
 
 const MIN=-2000, MAX=2026, RUSSIA_START=862;
 const Z=[0.5,0.75,1,1.5,2,3,5,8,12,20,35];
-const SIDE_PADDING = 1.5 * 37.795; // 1.5 см в пикселях
+const SIDE_PADDING = 1.5 * 37.795;
 let zi=parseInt(localStorage.getItem('timeline-zi'),10);
 if(isNaN(zi)||zi<0||zi>=Z.length) zi=2;
 
@@ -449,154 +489,187 @@ const yEl=document.getElementById('y'),eraEl=document.getElementById('era');
 const mt=document.getElementById('mt'),sb=document.getElementById('sb');
 const cib=document.getElementById('cib'),cip=document.getElementById('cip'),rm=document.getElementById('rm');
 
-/* === Аккаунт === */
-const LS_USERS='timeline-users';
-const LS_SESSION='timeline-session';
-const LS_SAVED='timeline-saved';
-let currentUser=localStorage.getItem(LS_SESSION)||null;
-
-function getUsers(){
-  try{return JSON.parse(localStorage.getItem(LS_USERS)||'{}')}catch(e){return {}}
-}
-function setUsers(u){localStorage.setItem(LS_USERS,JSON.stringify(u))}
-function getSaved(){
-  try{return JSON.parse(localStorage.getItem(LS_SAVED)||'{}')}catch(e){return {}}
-}
-function setSaved(s){localStorage.setItem(LS_SAVED,JSON.stringify(s))}
-
-function refreshAuthUI(){
-  const badge=document.getElementById('userBadge');
-  const bReg=document.getElementById('btnRegister'),bLog=document.getElementById('btnLogin');
-  const bSave=document.getElementById('btnSave'),bMy=document.getElementById('btnMy'),bOut=document.getElementById('btnLogout');
-  if(currentUser){
-    const u=getUsers()[currentUser];
-    badge.classList.add('on');
-    document.getElementById('userName').textContent=u?u.name:currentUser;
-    document.getElementById('userAvatar').textContent=(u&&u.name?u.name:currentUser).charAt(0);
-    bReg.style.display='none';bLog.style.display='none';
-    bSave.style.display='';bMy.style.display='';bOut.style.display='';
-  }else{
-    badge.classList.remove('on');
-    bReg.style.display='';bLog.style.display='';
-    bSave.style.display='none';bMy.style.display='none';bOut.style.display='none';
-  }
-}
-
 let authMode='register';
-window.openAuth=function(mode){
-  authMode=mode||'register';
-  document.getElementById('authErr').textContent='';
+
+window.refreshAuthUI = function(){
+  const u = window.currentUser;
+  const badge = document.getElementById('userBadge');
+  const bReg  = document.getElementById('btnRegister');
+  const bLog  = document.getElementById('btnLogin');
+  const bSave = document.getElementById('btnSave');
+  const bMy   = document.getElementById('btnMy');
+  const bOut  = document.getElementById('btnLogout');
+
+  if (u) {
+    badge.classList.add('on');
+    document.getElementById('userName').textContent   = u.name;
+    document.getElementById('userAvatar').textContent = u.name.charAt(0).toUpperCase();
+    bReg.style.display  = 'none';
+    bLog.style.display  = 'none';
+    bSave.style.display = '';
+    bMy.style.display   = '';
+    bOut.style.display  = '';
+  } else {
+    badge.classList.remove('on');
+    bReg.style.display  = '';
+    bLog.style.display  = '';
+    bSave.style.display = 'none';
+    bMy.style.display   = 'none';
+    bOut.style.display  = 'none';
+  }
+};
+
+window.openAuth = function(mode){
+  authMode = mode || 'register';
+  document.getElementById('authErr').textContent = '';
   document.getElementById('authForm').reset();
   switchAuth(authMode);
   document.getElementById('authModal').classList.add('on');
-  setTimeout(()=>document.getElementById(mode==='register'?'auName':'auMail').focus(),50);
-}
-window.closeAuth=function(){document.getElementById('authModal').classList.remove('on')}
-document.getElementById('authModal').onclick=e=>{if(e.target===document.getElementById('authModal'))closeAuth()}
-window.switchAuth=function(mode){
-  authMode=mode;
-  document.getElementById('authTitle').textContent=mode==='register'?'Регистрация':'Вход';
-  document.getElementById('authSubmit').textContent=mode==='register'?'Зарегистрироваться':'Войти';
-  document.getElementById('fgName').style.display=mode==='register'?'':'none';
-  document.getElementById('tabReg').classList.toggle('active',mode==='register');
-  document.getElementById('tabLog').classList.toggle('active',mode==='login');
-  document.getElementById('authErr').textContent='';
-}
+  setTimeout(()=>document.getElementById(mode==='register'?'auName':'auMail').focus(), 50);
+};
+window.closeAuth = function(){ document.getElementById('authModal').classList.remove('on'); };
+document.getElementById('authModal').onclick = e => {
+  if (e.target === document.getElementById('authModal')) closeAuth();
+};
 
-document.getElementById('authForm').onsubmit=function(e){
+window.switchAuth = function(mode){
+  authMode = mode;
+  document.getElementById('authTitle').textContent =
+    mode === 'register' ? 'Регистрация' : 'Вход';
+  document.getElementById('authSubmit').textContent =
+    mode === 'register' ? 'Зарегистрироваться' : 'Войти';
+  document.getElementById('fgName').style.display =
+    mode === 'register' ? '' : 'none';
+  document.getElementById('tabReg').classList.toggle('active', mode === 'register');
+  document.getElementById('tabLog').classList.toggle('active', mode === 'login');
+  document.getElementById('authErr').textContent = '';
+};
+
+document.getElementById('authForm').onsubmit = async function(e){
   e.preventDefault();
-  const err=document.getElementById('authErr');
-  err.textContent='';
-  const mail=document.getElementById('auMail').value.trim().toLowerCase();
-  const pass=document.getElementById('auPass').value;
-  const name=document.getElementById('auName').value.trim();
-  if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)){err.textContent='Введите корректную почту';return}
-  if(pass.length<4){err.textContent='Пароль должен быть не короче 4 символов';return}
-  const users=getUsers();
-  if(authMode==='register'){
-    if(!name){err.textContent='Введите имя пользователя';return}
-    if(users[mail]){err.textContent='Пользователь с такой почтой уже существует';return}
-    users[mail]={name:name,pass:pass,created:Date.now()};
-    setUsers(users);
-    currentUser=mail;localStorage.setItem(LS_SESSION,mail);
-    refreshAuthUI();closeAuth();
-  }else{
-    if(!users[mail]){err.textContent='Пользователь не найден';return}
-    if(users[mail].pass!==pass){err.textContent='Неверный пароль';return}
-    currentUser=mail;localStorage.setItem(LS_SESSION,mail);
-    refreshAuthUI();closeAuth();
+  const err  = document.getElementById('authErr');
+  err.textContent = '';
+  const mail = document.getElementById('auMail').value.trim().toLowerCase();
+  const pass = document.getElementById('auPass').value;
+  const name = document.getElementById('auName').value.trim();
+
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { err.textContent = 'Введите корректную почту'; return; }
+  if (pass.length < 6) { err.textContent = 'Пароль должен быть не короче 6 символов'; return; }
+
+  try {
+    if (authMode === 'register') {
+      if (!name) { err.textContent = 'Введите имя пользователя'; return; }
+      const cred = await window.__fb.createUserWithEmailAndPassword(window.__auth, mail, pass);
+      await window.__fb.updateProfile(cred.user, { displayName: name });
+      window.currentUser = { uid: cred.user.uid, email: mail, name };
+      window.refreshAuthUI();
+      closeAuth();
+    } else {
+      await window.__fb.signInWithEmailAndPassword(window.__auth, mail, pass);
+      closeAuth();
+    }
+  } catch (ex) {
+    const map = {
+      'auth/email-already-in-use': 'Пользователь с такой почтой уже существует',
+      'auth/invalid-email':        'Некорректная почта',
+      'auth/weak-password':        'Слишком слабый пароль',
+      'auth/user-not-found':       'Пользователь не найден',
+      'auth/wrong-password':       'Неверный пароль',
+      'auth/invalid-credential':   'Неверная почта или пароль'
+    };
+    err.textContent = map[ex.code] || ('Ошибка: ' + ex.message);
   }
-}
+};
 
-window.logout=function(){
-  currentUser=null;localStorage.removeItem(LS_SESSION);
-  refreshAuthUI();
-}
+window.logout = async function(){
+  await window.__fb.signOut(window.__auth);
+};
 
-window.saveTimeline=function(){
-  if(!currentUser){alert('Сначала войдите в аккаунт');return}
-  const defName='Лента от '+new Date().toLocaleString('ru-RU');
-  const name=prompt('Название ленты:',defName);
-  if(name===null)return;
-  const title=(name.trim()||defName);
-  const saved=getSaved();
-  if(!saved[currentUser])saved[currentUser]=[];
-  saved[currentUser].unshift({
-    id:Date.now()+Math.random(),
-    name:title,
-    date:Date.now(),
-    data:JSON.parse(JSON.stringify(db)),
-    active:activeTrack
-  });
-  setSaved(saved);
-  alert('Лента «'+title+'» сохранена в аккаунте.');
-}
+window.saveTimeline = async function(){
+  if (!window.currentUser) { alert('Сначала войдите в аккаунт'); return; }
+  const defName = 'Лента от ' + new Date().toLocaleString('ru-RU');
+  const name = prompt('Название ленты:', defName);
+  if (name === null) return;
+  const title = name.trim() || defName;
 
-window.openMyTimelines=function(){
-  if(!currentUser){alert('Сначала войдите в аккаунт');return}
-  renderSavedList();
-  document.getElementById('myModal').classList.add('on');
-}
-window.closeMy=function(){document.getElementById('myModal').classList.remove('on')}
-document.getElementById('myModal').onclick=e=>{if(e.target===document.getElementById('myModal'))closeMy()}
+  const { collection, addDoc, serverTimestamp, fs } = window.__fs;
+  try {
+    await addDoc(collection(fs, 'timelines'), {
+      uid: window.currentUser.uid,
+      name: title,
+      data: JSON.parse(JSON.stringify(db)),
+      active: activeTrack,
+      createdAt: serverTimestamp()
+    });
+    alert('Лента «' + title + '» сохранена.');
+  } catch (e) {
+    alert('Ошибка сохранения: ' + e.message);
+  }
+};
 
-function renderSavedList(){
-  const list=document.getElementById('savedList');
-  const saved=(getSaved()[currentUser]||[]);
-  if(!saved.length){
-    list.innerHTML='<div class="saved-empty">У вас пока нет сохранённых лент.</div>';
+window.openMyTimelines = async function(){
+  if (!window.currentUser) { alert('Сначала войдите в аккаунт'); return; }
+  const { collection, query, where, getDocs, fs } = window.__fs;
+  try {
+    const q = query(collection(fs, 'timelines'), where('uid', '==', window.currentUser.uid));
+    const snap = await getDocs(q);
+    const saved = [];
+    snap.forEach(d => saved.push({ id: d.id, ...d.data() }));
+    saved.sort((a,b) => (b.createdAt?.seconds||0) - (a.createdAt?.seconds||0));
+    renderSavedList(saved);
+    document.getElementById('myModal').classList.add('on');
+  } catch (e) {
+    alert('Ошибка загрузки: ' + e.message);
+  }
+};
+
+window.closeMy = function(){ document.getElementById('myModal').classList.remove('on'); };
+document.getElementById('myModal').onclick = e => {
+  if (e.target === document.getElementById('myModal')) closeMy();
+};
+
+function renderSavedList(saved){
+  const list = document.getElementById('savedList');
+  if (!saved.length) {
+    list.innerHTML = '<div class="saved-empty">У вас пока нет сохранённых лент.</div>';
     return;
   }
-  list.innerHTML='';
-  saved.forEach(item=>{
-    const wc=(item.data.world||[]).length, rc=(item.data.russia||[]).length;
-    const el=document.createElement('div');
-    el.className='saved-item';
-    el.innerHTML='<div class="si-info"><div class="si-name">'+esc(item.name)+'</div>'+
-      '<div class="si-meta">'+new Date(item.date).toLocaleString('ru-RU')+' · мировых: '+wc+' · российских: '+rc+'</div></div>'+
-      '<div class="si-actions">'+
-      '<button class="si-btn load">Загрузить</button>'+
-      '<button class="si-btn del">Удалить</button>'+
-      '</div>';
-    el.querySelector('.load').onclick=()=>{
-      if(!confirm('Загрузить «'+item.name+'»? Текущая лента будет заменена.'))return;
-      db=JSON.parse(JSON.stringify(item.data));
-      if(!Array.isArray(db.world))db.world=[];
-      if(!Array.isArray(db.russia))db.russia=[];
-      activeTrack=item.active||'world';
-      save();closeMy();apply((startYear()+MAX)/2);
+  list.innerHTML = '';
+  saved.forEach(item => {
+    const wc = (item.data.world||[]).length;
+    const rc = (item.data.russia||[]).length;
+    const el = document.createElement('div');
+    el.className = 'saved-item';
+    const dt = item.createdAt?.toDate ? item.createdAt.toDate().toLocaleString('ru-RU') : '';
+    el.innerHTML =
+      '<div class="si-info"><div class="si-name">' + esc(item.name) + '</div>' +
+      '<div class="si-meta">' + dt + ' · мировых: ' + wc + ' · российских: ' + rc + '</div></div>' +
+      '<div class="si-actions">' +
+      '<button class="si-btn load">Загрузить</button>' +
+      '<button class="si-btn del">Удалить</button></div>';
+
+    el.querySelector('.load').onclick = () => {
+      if (!confirm('Загрузить «' + item.name + '»? Текущая лента будет заменена.')) return;
+      db = JSON.parse(JSON.stringify(item.data));
+      if (!Array.isArray(db.world))  db.world  = [];
+      if (!Array.isArray(db.russia)) db.russia = [];
+      activeTrack = item.active || 'world';
+      save(); closeMy(); apply((startYear() + MAX) / 2);
     };
-    el.querySelector('.del').onclick=()=>{
-      if(!confirm('Удалить сохранённую ленту «'+item.name+'»?'))return;
-      const s=getSaved();
-      s[currentUser]=(s[currentUser]||[]).filter(x=>x.id!==item.id);
-      setSaved(s);renderSavedList();
+    el.querySelector('.del').onclick = async () => {
+      if (!confirm('Удалить сохранённую ленту «' + item.name + '»?')) return;
+      const { deleteDoc, doc, fs } = window.__fs;
+      try {
+        await deleteDoc(doc(fs, 'timelines', item.id));
+        openMyTimelines();
+      } catch (e) {
+        alert('Ошибка удаления: ' + e.message);
+      }
     };
     list.appendChild(el);
   });
 }
 
-/* === Панель события === */
 const sidePanel=document.getElementById('sidePanel');
 const panelBackdrop=document.getElementById('panelBackdrop');
 let panelOpen=false;
