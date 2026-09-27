@@ -222,15 +222,35 @@ body:before{
 .side-panel-body .sp-desc{font-size:14px;line-height:1.6;color:#4c5163;white-space:pre-wrap}
 .side-panel-body .sp-desc.empty-desc{color:#9a9fb0;font-style:italic}
 .map-btn{display:flex;align-items:center;gap:7px;margin-bottom:16px;width:100%;justify-content:center}
-.map-modal-mc{width:920px;max-width:96vw;padding:16px}
-.map-modal-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
-.map-modal-top h2{margin:0;font-size:18px}
-.map-modal-actions{display:flex;gap:8px}
-.map-modal-link{text-decoration:none;font-size:12px;padding:9px 13px;display:inline-flex;align-items:center;gap:6px}
-.map-frame-wrap{position:relative;width:100%;height:72vh;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.7);background:#fff}
+
+/* Панель карты — открывается СЛЕВА от выплывающего блока события,
+   чтобы текст события и карта были видны одновременно */
+.map-panel{
+  position:fixed;top:0;bottom:0;left:16px;right:436px;z-index:1150;
+  display:flex;pointer-events:none;
+}
+.map-panel-inner{
+  margin:16px 0;width:100%;min-width:0;display:flex;flex-direction:column;padding:18px;
+  background:linear-gradient(145deg,rgba(255,255,255,.9),rgba(255,255,255,.72));
+  border:1px solid rgba(255,255,255,.9);border-radius:24px;
+  box-shadow:0 25px 60px rgba(55,54,80,.25);
+  backdrop-filter:blur(22px) saturate(140%);-webkit-backdrop-filter:blur(22px) saturate(140%);
+  transform:translateX(-24px);opacity:0;transition:transform .32s cubic-bezier(.4,0,.2,1),opacity .32s ease;
+}
+.map-panel.on{pointer-events:auto}
+.map-panel.on .map-panel-inner{transform:translateX(0);opacity:1}
+.map-panel-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.map-panel-top h2{margin:0;font-size:18px}
+.map-panel-actions{display:flex;gap:8px}
+.map-panel-link{text-decoration:none;font-size:12px;padding:9px 13px;display:inline-flex;align-items:center;gap:6px}
+.map-frame-wrap{position:relative;flex:1;min-height:180px;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.7);background:#fff}
 .map-frame-wrap iframe{width:100%;height:100%;border:0;display:block}
 .map-frame-note{font-size:12px;color:#7d8292;margin-top:10px;line-height:1.4}
-@media(max-width:640px){.map-frame-wrap{height:60vh}}
+@media(max-width:900px){
+  /* На узких экранах место рядом с панелью события отсутствует —
+     карта раскрывается поверх всего экрана */
+  .map-panel{left:12px;right:12px;top:12px;bottom:12px;z-index:1250}
+}
 .side-panel-backdrop{
   position:fixed;inset:0;background:rgba(70,72,88,.18);backdrop-filter:blur(3px);
   z-index:1090;opacity:0;pointer-events:none;transition:opacity .35s;
@@ -278,7 +298,7 @@ body:before{
  @page{size:A4 landscape;margin:10mm}
  html,body{height:auto!important;overflow:visible!important;background:#fff!important}
  body>*:not(#pdfArea){display:none!important}
- #pdfArea{display:block!important}
+ #pdfArea{display:block!important;filter:grayscale(100%);-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
 @media(max-width:800px){
  .header{height:64px;padding:14px 18px}.header h1{font-size:23px}
@@ -375,19 +395,21 @@ body:before{
   </form>
 </div></div>
 
-<div class="modal" id="mapModal"><div class="mc map-modal-mc">
-  <div class="map-modal-top">
-    <h2 id="mapModalTitle">Карта</h2>
-    <div class="map-modal-actions">
-      <a class="glass-btn map-modal-link" id="mapOpenNew" href="#" target="_blank" rel="noopener">↗ Открыть в новой вкладке</a>
-      <button class="glass-btn cancel" onclick="closeMap()">Закрыть</button>
+<div class="map-panel" id="mapPanel" aria-hidden="true">
+  <div class="map-panel-inner">
+    <div class="map-panel-top">
+      <h2 id="mapModalTitle">Карта</h2>
+      <div class="map-panel-actions">
+        <a class="glass-btn map-panel-link" id="mapOpenNew" href="#" target="_blank" rel="noopener">↗ Открыть в новой вкладке</a>
+        <button class="glass-btn cancel" onclick="closeMap()">Закрыть</button>
+      </div>
     </div>
+    <div class="map-frame-wrap">
+      <iframe id="mapFrame" src="about:blank" title="Историческая карта" allowfullscreen></iframe>
+    </div>
+    <div class="map-frame-note">Карта предоставлена сервисом oldmapsonline.org. Если карта не отображается, откройте её в новой вкладке.</div>
   </div>
-  <div class="map-frame-wrap">
-    <iframe id="mapFrame" src="about:blank" title="Историческая карта" allowfullscreen></iframe>
-  </div>
-  <div class="map-frame-note">Карта предоставлена сервисом oldmapsonline.org. Если карта не отображается, откройте её в новой вкладке.</div>
-</div></div>
+</div>
 
 <div class="modal" id="pdfModal"><div class="mc">
   <h2>Экспорт в PDF</h2>
@@ -715,9 +737,13 @@ window.closePanel=function(){
   panelBackdrop.classList.remove('on');
   sidePanel.setAttribute('aria-hidden','true');
   panelOpen=false;
+  closeMap();
 }
 
 // --- Историческая карта (oldmapsonline.org) ---
+// Появляется слева от выплывающей панели события, так что текст и карту видно одновременно.
+const mapPanel=document.getElementById('mapPanel');
+let mapOpen=false;
 function mapUrlForYear(year){
   // year уже хранится со знаком: положительный = н.э., отрицательный = до н.э.
   return 'https://www.oldmapsonline.org/en/history/regions#position=1.3871/28.6/4.9&year='+Math.round(year);
@@ -729,16 +755,20 @@ window.openMap=function(year){
   const frame=document.getElementById('mapFrame');
   frame.src='about:blank';
   setTimeout(()=>{frame.src=url},30);
-  document.getElementById('mapModal').classList.add('on');
+  mapPanel.classList.add('on');
+  mapPanel.setAttribute('aria-hidden','false');
+  mapOpen=true;
 }
 window.closeMap=function(){
-  document.getElementById('mapModal').classList.remove('on');
+  mapPanel.classList.remove('on');
+  mapPanel.setAttribute('aria-hidden','true');
   document.getElementById('mapFrame').src='about:blank';
+  mapOpen=false;
 }
 
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
-    if(document.getElementById('mapModal').classList.contains('on')){closeMap();return}
+    if(mapOpen){closeMap();return}
     if(panelOpen){closePanel();return}
     if(document.getElementById('authModal').classList.contains('on')){closeAuth();return}
     if(document.getElementById('myModal').classList.contains('on')){closeMy();return}
@@ -956,27 +986,46 @@ window.doExport=function(){
   if(f>t)[f,t]=[t,f];
   const list=db[activeTrack].filter(e=>e.year>=f&&e.year<=t).sort((a,b)=>a.year-b.year);
   if(!list.length){alert('Нет событий в диапазоне');return}
-  const W=1100,H=500,rl=Math.max(1,t-f),PPY=W/rl;
+  const W=1100,H=520,rl=Math.max(1,t-f),PPY=W/rl;
   const area=document.getElementById('pdfArea');area.innerHTML='';
+  area.style.cssText='background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact';
   const h=document.createElement('h1');h.textContent='Лента времени — '+(activeTrack==='world'?'Мировая история':'История России');
-  h.style.cssText='text-align:center;font-family:Segoe UI,Arial;color:#222;margin:0 0 5px;font-size:21px';
+  h.style.cssText='text-align:center;font-family:Segoe UI,Arial;color:#000;margin:0 0 5px;font-size:21px';
   area.appendChild(h);
   const sub=document.createElement('div');sub.textContent=fmtYear(f)+' — '+fmtYear(t)+' · событий: '+list.length;
-  sub.style.cssText='text-align:center;color:#888;font-size:11px;margin-bottom:15px';area.appendChild(sub);
-  const sc=document.createElement('div');sc.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;margin:0 auto;background:#fafafa;border:1px solid #ddd';
-  const ln=document.createElement('div');ln.style.cssText='position:absolute;left:0;top:'+(H/2-2)+'px;width:'+W+'px;height:4px;background:'+(activeTrack==='world'?'#7657ee':'#e45768');sc.appendChild(ln);
+  sub.style.cssText='text-align:center;color:#555;font-size:11px;margin-bottom:15px';area.appendChild(sub);
+  const sc=document.createElement('div');sc.style.cssText='position:relative;width:'+W+'px;height:'+H+'px;margin:0 auto;background:#fff;border:1px solid #000';
+  // центральная линия ленты (чёрная, как и весь экспорт — только чб)
+  const ln=document.createElement('div');ln.style.cssText='position:absolute;left:0;top:'+(H/2-2)+'px;width:'+W+'px;height:4px;background:#000';sc.appendChild(ln);
   const step=rl<=30?5:rl<=100?10:rl<=300?25:rl<=800?50:rl<=1600?100:250;
   for(let y=Math.ceil(f/step)*step;y<=t;y+=step){
-    const x=(y-f)*PPY,tk=document.createElement('div');tk.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2-8)+'px;width:1px;height:16px;background:#777';sc.appendChild(tk);
+    const x=(y-f)*PPY,tk=document.createElement('div');tk.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2-8)+'px;width:1px;height:16px;background:#000';sc.appendChild(tk);
     if(y === 0) continue;
-    const lb=document.createElement('div');lb.textContent=fmtYear(y);lb.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2+12)+'px;transform:translateX(-50%);font-size:8px;color:#666;white-space:nowrap';sc.appendChild(lb);
+    const lb=document.createElement('div');lb.textContent=fmtYear(y);lb.style.cssText='position:absolute;left:'+x+'px;top:'+(H/2+12)+'px;transform:translateX(-50%);font-size:8px;color:#444;white-space:nowrap';sc.appendChild(lb);
   }
   list.forEach((ev,idx)=>{
-    const x=(ev.year-f)*PPY,c=document.createElement('div');c.style.cssText='position:absolute;left:'+(x-48)+'px;width:96px;padding:5px;background:#fff;border:1px solid #ddd;border-radius:6px;font-family:Segoe UI,Arial;'+(idx%2===0?'bottom:'+(H/2+15)+'px':'top:'+(H/2+15)+'px');
-    c.innerHTML='<div style="font-size:8px;color:'+(activeTrack==='world'?'#6246d8':'#c83e52')+';font-weight:700">'+fmtYear(ev.year)+'</div><div style="font-size:9px;font-weight:600;line-height:1.15">'+esc(ev.title)+'</div><div style="font-size:8px;color:#666;line-height:1.15">'+esc(ev.desc||'')+'</div>';
+    const x=(ev.year-f)*PPY,up=idx%2===0;
+    // соединительная чёрточка от линии ленты к карточке (как на экране)
+    const stick=document.createElement('div');
+    stick.style.cssText='position:absolute;left:'+x+'px;width:1px;height:15px;background:#000;top:'+(up?(H/2-15):(H/2))+'px';
+    sc.appendChild(stick);
+    const dot=document.createElement('div');
+    dot.style.cssText='position:absolute;left:'+(x-3)+'px;top:'+(H/2-3)+'px;width:6px;height:6px;border-radius:50%;background:#000';
+    sc.appendChild(dot);
+    // карточка события: только год, изображение (если есть) и заголовок —
+    // без описания и прочей дополнительной информации, всё в чёрно-белой гамме
+    const c=document.createElement('div');
+    c.style.cssText='position:absolute;left:'+(x-58)+'px;width:116px;padding:6px;background:#fff;border:1px solid #000;border-radius:6px;font-family:Segoe UI,Arial;text-align:center;'+(up?'bottom:'+(H/2+15)+'px':'top:'+(H/2+15)+'px');
+    let inner='';
+    if(ev.image) inner+='<img src="'+ev.image.replace(/"/g,'&quot;')+'" style="width:100%;height:58px;object-fit:cover;border-radius:4px;margin-bottom:4px;filter:grayscale(100%);display:block" onerror="this.style.display=\'none\'">';
+    inner+='<div style="font-size:8px;color:#000;font-weight:700">'+fmtYear(ev.year)+'</div>';
+    inner+='<div style="font-size:9px;font-weight:600;line-height:1.15;color:#000">'+esc(ev.title)+'</div>';
+    c.innerHTML=inner;
     sc.appendChild(c);
   });
-  area.appendChild(sc);setTimeout(()=>window.print(),200);
+  area.appendChild(sc);
+  closePdf();
+  setTimeout(()=>window.print(),200);
 };
 
 wrap.addEventListener('wheel',e=>{
