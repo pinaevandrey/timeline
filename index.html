@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
@@ -220,6 +221,16 @@ body:before{
 }
 .side-panel-body .sp-desc{font-size:14px;line-height:1.6;color:#4c5163;white-space:pre-wrap}
 .side-panel-body .sp-desc.empty-desc{color:#9a9fb0;font-style:italic}
+.map-btn{display:flex;align-items:center;gap:7px;margin-bottom:16px;width:100%;justify-content:center}
+.map-modal-mc{width:920px;max-width:96vw;padding:16px}
+.map-modal-top{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.map-modal-top h2{margin:0;font-size:18px}
+.map-modal-actions{display:flex;gap:8px}
+.map-modal-link{text-decoration:none;font-size:12px;padding:9px 13px;display:inline-flex;align-items:center;gap:6px}
+.map-frame-wrap{position:relative;width:100%;height:72vh;border-radius:18px;overflow:hidden;border:1px solid rgba(255,255,255,.7);background:#fff}
+.map-frame-wrap iframe{width:100%;height:100%;border:0;display:block}
+.map-frame-note{font-size:12px;color:#7d8292;margin-top:10px;line-height:1.4}
+@media(max-width:640px){.map-frame-wrap{height:60vh}}
 .side-panel-backdrop{
   position:fixed;inset:0;background:rgba(70,72,88,.18);backdrop-filter:blur(3px);
   z-index:1090;opacity:0;pointer-events:none;transition:opacity .35s;
@@ -270,203 +281,11 @@ body:before{
  #pdfArea{display:block!important}
 }
 @media(max-width:800px){
-  :root{--mobile-pad:12px}
-
-  html,body{width:100%;height:100%;overflow:hidden}
-  body{
-    -webkit-text-size-adjust:100%;
-    overscroll-behavior:none;
-  }
-
-  .header{
-    height:58px;
-    padding:10px var(--mobile-pad);
-  }
-  .header h1{
-    font-size:21px;
-    letter-spacing:-.45px;
-  }
-
-  .toolbar{
-    margin:0 var(--mobile-pad) 8px;
-    padding:8px;
-    gap:7px;
-    flex-wrap:nowrap;
-    overflow-x:auto;
-    overflow-y:hidden;
-    border-radius:18px;
-    scrollbar-width:none;
-    -webkit-overflow-scrolling:touch;
-    touch-action:pan-x;
-  }
-  .toolbar::-webkit-scrollbar{display:none}
-  .toolbar .spacer{display:none}
-  .glass-btn{
-    min-height:42px;
-    padding:10px 13px;
-    flex:0 0 auto;
-    font-size:13px;
-  }
-  .icon-btn{
-    width:42px;
-    min-width:42px;
-    padding:0;
-  }
-  .switcher{
-    flex:0 0 auto;
-  }
-  .user-badge{
-    flex:0 0 auto;
-    max-width:170px;
-  }
-
-  .wrap{
-    top:116px;
-    bottom:0;
-    -webkit-overflow-scrolling:touch;
-    overscroll-behavior:contain;
-    touch-action:pan-x pan-y;
-    scrollbar-width:thin;
-  }
-
-  .scene{
-    padding-left:20px;
-    padding-right:20px;
-  }
-
-  .track{height:110px}
-  .track.world{top:27%}
-  .track.russia{top:73%}
-
-  .card{
-    width:185px;
-    padding:10px;
-    border-radius:17px;
-    gap:4px;
-    touch-action:manipulation;
-  }
-  .card:active{
-    transform:translateX(-50%);
-  }
-  .ci{height:88px}
-  .ct{font-size:14px}
-  .acts{
-    opacity:1;
-  }
-  .ib{
-    width:32px;
-    height:32px;
-    font-size:14px;
-  }
-
-  .tick-label{font-size:11px}
-  .start-label{font-size:10px;padding:4px 7px}
-
-  .empty{
-    width:calc(100vw - 32px);
-    max-width:340px;
-    padding:15px 18px;
-    font-size:13px;
-  }
-
-  .modal{
-    align-items:flex-end;
-    padding:0;
-  }
-  .mc{
-    width:100%!important;
-    max-width:none;
-    max-height:94dvh;
-    padding:20px 16px calc(20px + env(safe-area-inset-bottom));
-    border-radius:24px 24px 0 0;
-    overflow:auto;
-    -webkit-overflow-scrolling:touch;
-  }
-  .mc h2{font-size:20px;margin-bottom:16px}
-  .fg{margin-bottom:12px}
-  .fg input,.fg textarea,.fg select{
-    min-height:44px;
-    font-size:16px;
-  }
-  .year-row{grid-template-columns:minmax(0,1fr) minmax(105px,.7fr)}
-  .ma{
-    position:sticky;
-    bottom:0;
-    padding-top:10px;
-    margin-left:-16px;
-    margin-right:-16px;
-    padding-left:16px;
-    padding-right:16px;
-    padding-bottom:env(safe-area-inset-bottom);
-    background:linear-gradient(to bottom,rgba(245,242,246,0),rgba(245,242,246,.9) 35%,rgba(245,242,246,.96));
-  }
-  .ma .glass-btn{
-    min-width:110px;
-  }
-
-  .side-panel{
-    width:100%;
-    max-width:100%;
-    padding-bottom:env(safe-area-inset-bottom);
-  }
-  .side-panel-head{
-    padding:16px 16px 12px;
-  }
-  .side-panel-head h2{font-size:19px}
-  .side-panel-body{
-    padding:16px 16px 28px;
-    -webkit-overflow-scrolling:touch;
-  }
-  .side-panel-body img.sp-img{
-    max-height:42vh;
-    border-radius:15px;
-  }
-  .sp-close{
-    width:42px;
-    height:42px;
-  }
-
-  .saved-item{
-    align-items:flex-start;
-    padding:12px;
-  }
-  .saved-item .si-actions{
-    flex-direction:column;
-  }
-  .si-btn{
-    min-height:40px;
-  }
-
-  .auth-tab{min-height:44px}
-}
-
-@media(max-width:480px){
-  .header{height:54px}
-  .header h1{font-size:19px}
-  .toolbar{margin-left:8px;margin-right:8px}
-  .wrap{top:108px}
-  .card{width:172px}
-  .ci{height:78px}
-  .track.world{top:25%}
-  .track.russia{top:75%}
-  .side-panel-head h2{font-size:18px}
-  .side-panel-body .sp-desc{font-size:14px;line-height:1.55}
-  .ma{
-    flex-direction:column-reverse;
-  }
-  .ma .glass-btn{
-    width:100%;
-  }
-}
-
-@media (pointer:coarse){
-  .glass-btn,.track-tab,.ib,.si-btn,.sp-close{
-    -webkit-tap-highlight-color:transparent;
-    touch-action:manipulation;
-  }
-  .glass-btn:hover,.track-tab:hover,.card:hover,.si-btn:hover{
-    transform:none;
-  }
+ .header{height:64px;padding:14px 18px}.header h1{font-size:23px}
+ .toolbar{margin:0 12px 10px;border-radius:20px}
+ .wrap{top:125px}.card{width:190px}
+ .spacer{display:none}
+ .side-panel{width:100%;max-width:100%}
 }
 </style>
 </head>
@@ -556,6 +375,20 @@ body:before{
   </form>
 </div></div>
 
+<div class="modal" id="mapModal"><div class="mc map-modal-mc">
+  <div class="map-modal-top">
+    <h2 id="mapModalTitle">Карта</h2>
+    <div class="map-modal-actions">
+      <a class="glass-btn map-modal-link" id="mapOpenNew" href="#" target="_blank" rel="noopener">↗ Открыть в новой вкладке</a>
+      <button class="glass-btn cancel" onclick="closeMap()">Закрыть</button>
+    </div>
+  </div>
+  <div class="map-frame-wrap">
+    <iframe id="mapFrame" src="about:blank" title="Историческая карта" allowfullscreen></iframe>
+  </div>
+  <div class="map-frame-note">Карта предоставлена сервисом oldmapsonline.org. Если карта не отображается, откройте её в новой вкладке.</div>
+</div></div>
+
 <div class="modal" id="pdfModal"><div class="mc">
   <h2>Экспорт в PDF</h2>
   <p class="hint">Будет экспортирована активная лента с событиями в выбранном диапазоне.</p>
@@ -622,10 +455,6 @@ body:before{
   import {
     getFirestore, collection, addDoc, query, where, getDocs, deleteDoc, doc, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-
-  /* ============================================================
-     ↓↓↓  ВСТАВЬТЕ СЮДА ВАШ firebaseConfig ИЗ ШАГА B  ↓↓↓
-     ============================================================ */
   const firebaseConfig = {
   apiKey: "AIzaSyCebBAxkonsKhhU3JIJnJZA2gAmagjsYU8",
   authDomain: "timeline-hist.firebaseapp.com",
@@ -635,10 +464,6 @@ body:before{
   appId: "1:236225190502:web:082f859be6a63d54776ba7",
   measurementId: "G-F723YWRK95"
   };
-  /* ============================================================
-     ↑↑↑  КОНЕЦ ВАШЕГО БЛОКА  ↑↑↑
-     ============================================================ */
-
   const app  = initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const fs   = getFirestore(app);
@@ -777,54 +602,24 @@ window.logout = async function(){
 };
 
 window.saveTimeline = async function(){
-  // Берём пользователя непосредственно из Firebase Auth, чтобы не попасть
-  // в состояние, когда UI уже обновился, а window.currentUser ещё не успел.
-  const user = window.__auth?.currentUser || window.currentUser;
-  if (!user) { alert('Сначала войдите в аккаунт'); return; }
-
+  if (!window.currentUser) { alert('Сначала войдите в аккаунт'); return; }
   const defName = 'Лента от ' + new Date().toLocaleString('ru-RU');
   const name = prompt('Название ленты:', defName);
   if (name === null) return;
   const title = name.trim() || defName;
 
+  const { collection, addDoc, serverTimestamp, fs } = window.__fs;
   try {
-    const { collection, addDoc, serverTimestamp, fs } = window.__fs;
-    const data = JSON.parse(JSON.stringify(db));
-    const payload = {
-      uid: user.uid,
+    await addDoc(collection(fs, 'timelines'), {
+      uid: window.currentUser.uid,
       name: title,
-      data,
+      data: JSON.parse(JSON.stringify(db)),
       active: activeTrack,
       createdAt: serverTimestamp()
-    };
-
-    // Firestore ограничивает один документ размером примерно 1 MiB.
-    // Проверяем размер до отправки, чтобы вместо непонятной ошибки показать причину.
-    const bytes = new Blob([JSON.stringify(payload)]).size;
-    if (bytes >= 1000000) {
-      alert('Лента слишком большая для одного документа Firestore (' +
-        Math.round(bytes / 1024) + ' КБ). Обычно это происходит из-за больших изображений. ' +
-        'Уменьшите изображения в событиях и попробуйте снова.');
-      return;
-    }
-
-    await addDoc(collection(fs, 'timelines'), payload);
+    });
     alert('Лента «' + title + '» сохранена.');
   } catch (e) {
-    console.error('Firestore save error:', e);
-    const code = e?.code || '';
-    let message = e?.message || String(e);
-
-    if (code === 'permission-denied') {
-      message = 'Firebase отклонил запись: нет разрешения Firestore для текущего пользователя. ' +
-        'Проверьте Rules для коллекции timelines.';
-    } else if (code === 'unauthenticated') {
-      message = 'Firebase считает пользователя неавторизованным. Выйдите и войдите в аккаунт снова.';
-    } else if (code === 'resource-exhausted' || /maximum.*size|too large|exceed/i.test(message)) {
-      message = 'Лента превышает допустимый размер документа Firestore. Уменьшите изображения в событиях.';
-    }
-
-    alert('Ошибка сохранения: ' + message);
+    alert('Ошибка сохранения: ' + e.message);
   }
 };
 
@@ -904,6 +699,7 @@ window.openPanel=function(id){
   document.getElementById('spTitle').textContent=ev.title;
   const body=document.getElementById('spBody');
   let html='';
+  html+='<button class="glass-btn map-btn" onclick="openMap('+ev.year+')">🗺 Карта</button>';
   if(ev.image) html+='<img class="sp-img" src="'+ev.image.replace(/"/g,'&quot;')+'" onerror="this.style.display=\'none\'">';
   const desc=(ev.desc||'').trim();
   html+='<div class="sp-desc'+(desc?'':' empty-desc')+'">'+(desc?esc(desc):'Описание не добавлено.')+'</div>';
@@ -920,8 +716,29 @@ window.closePanel=function(){
   sidePanel.setAttribute('aria-hidden','true');
   panelOpen=false;
 }
+
+// --- Историческая карта (oldmapsonline.org) ---
+function mapUrlForYear(year){
+  // year уже хранится со знаком: положительный = н.э., отрицательный = до н.э.
+  return 'https://www.oldmapsonline.org/en/history/regions#position=1.3871/28.6/4.9&year='+Math.round(year);
+}
+window.openMap=function(year){
+  const url=mapUrlForYear(year);
+  document.getElementById('mapOpenNew').href=url;
+  document.getElementById('mapModalTitle').textContent='Карта · '+fmtYear(year);
+  const frame=document.getElementById('mapFrame');
+  frame.src='about:blank';
+  setTimeout(()=>{frame.src=url},30);
+  document.getElementById('mapModal').classList.add('on');
+}
+window.closeMap=function(){
+  document.getElementById('mapModal').classList.remove('on');
+  document.getElementById('mapFrame').src='about:blank';
+}
+
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
+    if(document.getElementById('mapModal').classList.contains('on')){closeMap();return}
     if(panelOpen){closePanel();return}
     if(document.getElementById('authModal').classList.contains('on')){closeAuth();return}
     if(document.getElementById('myModal').classList.contains('on')){closeMy();return}
@@ -1172,20 +989,6 @@ wrap.addEventListener('mousedown',e=>{
 });
 window.addEventListener('mouseup',()=>{dn=false;wrap.classList.remove('drag')});
 window.addEventListener('mousemove',e=>{if(!dn)return;e.preventDefault();wrap.scrollLeft=ss-(e.pageX-sx)});
-
-// Сенсорная прокрутка временной шкалы: работает независимо от мыши/трекпада.
-let td=false,tsx=0,tss=0;
-wrap.addEventListener('touchstart',e=>{
-  if(e.touches.length!==1 || e.target.closest('.card') || e.target.closest('button')) return;
-  td=true; tsx=e.touches[0].pageX; tss=wrap.scrollLeft;
-},{passive:true});
-wrap.addEventListener('touchmove',e=>{
-  if(!td || e.touches.length!==1) return;
-  const dx=e.touches[0].pageX-tsx;
-  if(Math.abs(dx)>3) wrap.scrollLeft=tss-dx;
-},{passive:true});
-wrap.addEventListener('touchend',()=>{td=false},{passive:true});
-wrap.addEventListener('touchcancel',()=>{td=false},{passive:true});
 
 apply((startYear()+MAX)/2);
 updateHint();
