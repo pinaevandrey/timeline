@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<!DOCTYPE html>
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Лента времени</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 :root{
   --bg:#eef1f7;
@@ -257,6 +257,66 @@ body:before{
 }
 .side-panel-backdrop.on{opacity:1;pointer-events:auto}
 
+/* Кнопка-гамбургер слева — открывает панель с играми для запоминания материала */
+.hamburger-btn{
+  flex:0 0 auto;width:42px;height:42px;margin-right:16px;border-radius:14px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;
+  border:1px solid rgba(255,255,255,.78);
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.35));
+  cursor:pointer;box-shadow:0 8px 20px rgba(72,68,104,.10),inset 0 1px 0 #fff;transition:.2s ease;
+}
+.hamburger-btn:hover{transform:translateY(-1px);box-shadow:0 12px 24px rgba(72,68,104,.16),inset 0 1px 0 #fff}
+.hamburger-btn span{display:block;width:20px;height:2.5px;border-radius:2px;background:#353847}
+
+/* Панель игр — выезжает СЛЕВА (зеркально панели события) */
+.games-panel{
+  left:0;right:auto;border-left:none;border-right:1px solid rgba(255,255,255,.9);
+  box-shadow:25px 0 60px rgba(55,54,80,.22);transform:translateX(-105%);
+}
+.games-panel.on{transform:translateX(0)}
+.games-placeholder{
+  color:#7d8292;font-size:14px;line-height:1.7;text-align:center;padding:50px 12px;
+}
+.games-placeholder .gp-icon{font-size:42px;display:block;margin-bottom:14px}
+.games-placeholder-more{padding:24px 12px;font-size:13px}
+.games-grid{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;padding:10px 4px 4px}
+.game-card{
+  width:130px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:18px 10px;
+  border-radius:20px;border:1px solid rgba(255,255,255,.78);
+  background:linear-gradient(145deg,rgba(255,255,255,.72),rgba(255,255,255,.35));
+  cursor:pointer;box-shadow:0 8px 20px rgba(72,68,104,.10);transition:.2s;font:600 13px inherit;color:#353847;
+}
+.game-card:hover{transform:translateY(-2px);box-shadow:0 12px 24px rgba(72,68,104,.16)}
+.game-card-icon{font-size:38px;line-height:1}
+
+/* Модалка мини-игры «Рулетка дат и событий» — примерно размер рабочего стола */
+.dice-modal-mc{width:1200px;max-width:92vw;height:86vh;max-height:900px;display:flex;flex-direction:column;padding:24px}
+.dg-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+.dg-top h2{margin:0;font-size:19px}
+.dg-toolbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:18px}
+.dg-add-btn{width:44px;height:44px;border-radius:50%;font-size:22px;display:flex;align-items:center;justify-content:center;padding:0;flex:0 0 auto}
+.dg-status{font-size:12.5px;color:#7d8292;line-height:1.4}
+.dg-mode-row{display:flex;justify-content:center;gap:8px;margin-bottom:20px}
+.dg-mode-btn{
+  padding:9px 20px;border-radius:14px;border:1px solid rgba(255,255,255,.78);
+  background:rgba(255,255,255,.5);cursor:pointer;font:600 13px inherit;color:#555a6b;transition:.2s;
+}
+.dg-mode-btn.active{background:linear-gradient(135deg,rgba(118,87,238,.92),rgba(155,120,255,.78));color:#fff}
+.dg-stage{
+  flex:1;position:relative;min-height:0;
+  border-radius:22px;background:linear-gradient(145deg,rgba(255,255,255,.55),rgba(255,255,255,.25));
+  border:1px solid rgba(255,255,255,.7);margin-bottom:20px;padding:24px;overflow:hidden;
+}
+.dg-reel{position:relative;width:100%;height:100%}
+.dg-slot{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  font-size:clamp(26px,4.6vw,56px);font-weight:800;color:#2b2e3d;line-height:1.25;
+  text-align:center;padding:0 16px;word-break:break-word;
+  transform:translateY(0);opacity:1;will-change:transform,opacity;
+}
+.dg-actions{display:flex;justify-content:center}
+.dg-actions .glass-btn:disabled{opacity:.55;cursor:default;transform:none}
+
 .user-badge{
   display:none;align-items:center;gap:8px;padding:8px 14px;border-radius:18px;
   background:rgba(255,255,255,.5);border:1px solid rgba(255,255,255,.75);
@@ -310,12 +370,16 @@ body:before{
 </style>
 </head>
 <body>
-<header class="header"><h1>Лента времени</h1></header>
+<header class="header">
+  <button class="hamburger-btn" id="btnGames" onclick="toggleGames()" title="Игры" aria-label="Игры">
+    <span></span><span></span><span></span>
+  </button>
+  <h1>Лента времени</h1>
+</header>
 
 <div class="toolbar">
   <button class="glass-btn icon-btn" onclick="zoom(-1)" title="Уменьшить масштаб">−</button>
   <button class="glass-btn icon-btn" onclick="zoom(1)" title="Увеличить масштаб">+</button>
-  <button class="glass-btn" onclick="zoomReset()">Сброс</button>
   <div class="spacer"></div>
 
   <div class="user-badge" id="userBadge">
@@ -346,6 +410,23 @@ body:before{
 </div>
 
 <div class="side-panel-backdrop" id="panelBackdrop" onclick="closePanel()"></div>
+
+<div class="side-panel-backdrop" id="gamesBackdrop" onclick="closeGames()"></div>
+<aside class="side-panel games-panel" id="gamesPanel" aria-hidden="true">
+  <div class="side-panel-head">
+    <div><h2>Игры</h2></div>
+    <button class="sp-close" onclick="closeGames()" title="Закрыть (Esc)">✕</button>
+  </div>
+  <div class="side-panel-body">
+    <div class="games-grid">
+      <button class="game-card" onclick="openDiceGame()" title="Рулетка дат и событий">
+        <span class="game-card-icon">🎲</span>
+        <span class="game-card-label">Рулетка дат</span>
+      </button>
+    </div>
+    <div class="games-placeholder games-placeholder-more">Больше игр появится здесь позже.</div>
+  </div>
+</aside>
 <aside class="side-panel" id="sidePanel" aria-hidden="true">
   <div class="side-panel-head">
     <div>
@@ -411,9 +492,41 @@ body:before{
   </div>
 </div>
 
+<div class="modal" id="diceGameModal"><div class="mc dice-modal-mc">
+  <div class="dg-top">
+    <h2>🎲 Рулетка дат и событий</h2>
+    <button class="glass-btn cancel" onclick="closeDiceGame()">Закрыть</button>
+  </div>
+  <div class="dg-toolbar">
+    <button class="glass-btn dg-add-btn" onclick="document.getElementById('dgFile').click()" title="Добавить файл Excel">+</button>
+    <input type="file" id="dgFile" accept=".xlsx,.xls,.csv" style="display:none">
+    <span class="dg-status" id="dgStatus">Файл не загружен. Нажмите «+», чтобы добавить Excel с датами (столбец 1) и событиями (столбец 2).</span>
+  </div>
+  <div class="dg-mode-row">
+    <button class="dg-mode-btn active" id="dgModeDate" onclick="setGameMode('date')">Даты</button>
+    <button class="dg-mode-btn" id="dgModeTitle" onclick="setGameMode('title')">События</button>
+  </div>
+  <div class="dg-stage">
+    <div class="dg-reel">
+      <div class="dg-slot" id="dgSlotA">—</div>
+      <div class="dg-slot" id="dgSlotB"></div>
+    </div>
+  </div>
+  <div class="dg-actions">
+    <button class="glass-btn primary" id="dgStartBtn" onclick="startRoulette()">▶ Начать</button>
+  </div>
+</div></div>
+
 <div class="modal" id="pdfModal"><div class="mc">
   <h2>Экспорт в PDF</h2>
-  <p class="hint">Будет экспортирована активная лента с событиями в выбранном диапазоне.</p>
+  <p class="hint">Выберите ленту и диапазон лет для экспорта.</p>
+  <div class="fg">
+    <label>Лента</label>
+    <select id="pdfTrack">
+      <option value="world">Мировая история</option>
+      <option value="russia">История России</option>
+    </select>
+  </div>
   <div class="fg">
     <label>Диапазон</label>
     <div class="year-row">
@@ -715,6 +828,7 @@ let panelOpen=false;
 window.openPanel=function(id){
   const ev=db.world.concat(db.russia).find(e=>String(e.id)===String(id));
   if(!ev)return;
+  closeGames();
   const track=(db.world.some(x=>String(x.id)===String(id)))?'world':'russia';
   document.getElementById('spYear').textContent=fmtYear(ev.year);
   document.getElementById('spYear').className='sp-year '+track;
@@ -766,10 +880,185 @@ window.closeMap=function(){
   mapOpen=false;
 }
 
+// --- Панель игр для запоминания материала (открывается кнопкой-гамбургером слева) ---
+const gamesPanel=document.getElementById('gamesPanel');
+const gamesBackdrop=document.getElementById('gamesBackdrop');
+let gamesOpen=false;
+window.toggleGames=function(){
+  if(gamesOpen){closeGames();return}
+  closePanel();
+  gamesPanel.classList.add('on');
+  gamesBackdrop.classList.add('on');
+  gamesPanel.setAttribute('aria-hidden','false');
+  gamesOpen=true;
+}
+window.closeGames=function(){
+  gamesPanel.classList.remove('on');
+  gamesBackdrop.classList.remove('on');
+  gamesPanel.setAttribute('aria-hidden','true');
+  gamesOpen=false;
+}
+
+// --- Мини-игра «Рулетка дат и событий» ---
+const diceGameModal=document.getElementById('diceGameModal');
+let gameItems=[];      // [{date:'...', title:'...'}, ...] — загружаются из Excel
+let gameMode='date';   // 'date' | 'title' — что показывать
+let lastItem=null;     // последний выпавший элемент (для переключения режима без повторного запуска)
+let rouletteTimer=null;
+
+window.openDiceGame=function(){
+  closeGames();
+  diceGameModal.classList.add('on');
+}
+window.closeDiceGame=function(){
+  diceGameModal.classList.remove('on');
+  if(rouletteTimer){clearTimeout(rouletteTimer);rouletteTimer=null;document.getElementById('dgStartBtn').disabled=false}
+}
+diceGameModal.onclick=e=>{if(e.target===diceGameModal)closeDiceGame()};
+
+window.setGameMode=function(mode){
+  gameMode=mode;
+  document.getElementById('dgModeDate').classList.toggle('active',mode==='date');
+  document.getElementById('dgModeTitle').classList.toggle('active',mode==='title');
+  if(lastItem&&dgCurrentEl){
+    dgCurrentEl.textContent=(mode==='date'?lastItem.date:lastItem.title)||'—';
+  }
+}
+
+function updateGameStatus(){
+  const statusEl=document.getElementById('dgStatus');
+  statusEl.textContent=gameItems.length
+    ? ('Загружено событий: '+gameItems.length+'. Можно нажимать «Начать»!')
+    : 'Файл не загружен. Нажмите «+», чтобы добавить Excel с датами (столбец 1) и событиями (столбец 2).';
+}
+function isLikelyDateCell(v){
+  if(v instanceof Date) return true;
+  if(typeof v==='number') return true;
+  if(typeof v==='string') return /\d/.test(v.trim());
+  return false;
+}
+function formatDateCell(v){
+  if(v instanceof Date && !isNaN(v)) return v.toLocaleDateString('ru-RU');
+  if(v==null) return '';
+  return String(v).trim();
+}
+function handleExcelFile(file){
+  if(typeof XLSX==='undefined'){
+    alert('Библиотека для чтения Excel не загрузилась. Проверьте подключение к интернету и обновите страницу.');
+    return;
+  }
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=new Uint8Array(e.target.result);
+      const wb=XLSX.read(data,{type:'array',cellDates:true});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(sheet,{header:1,defval:''});
+      const items=[];
+      rows.forEach((row,idx)=>{
+        if(!row||!row.length)return;
+        const dateCell=row[0],titleCell=row[1];
+        const dateEmpty=(dateCell===''||dateCell==null);
+        const titleEmpty=(titleCell===''||titleCell==null);
+        if(dateEmpty&&titleEmpty)return;
+        if(idx===0&&!isLikelyDateCell(dateCell))return; // пропускаем строку-заголовок
+        items.push({date:formatDateCell(dateCell),title:String(titleCell||'').trim()});
+      });
+      if(!items.length){
+        alert('Не удалось найти данные. Убедитесь, что в первом столбце — даты, во втором — названия событий.');
+        return;
+      }
+      gameItems=items;
+      lastItem=null;
+      dgLastIndex=-1;
+      resetReel();
+      updateGameStatus();
+    }catch(err){
+      alert('Не удалось прочитать файл: '+(err&&err.message?err.message:err));
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+document.getElementById('dgFile').onchange=function(){
+  const f=this.files&&this.files[0];
+  if(f)handleExcelFile(f);
+  this.value='';
+};
+
+// --- Плавная «рулетка casino-style»: текущее значение улетает вверх, следующее выезжает снизу ---
+let dgCurrentEl=document.getElementById('dgSlotA');
+let dgNextEl=document.getElementById('dgSlotB');
+let dgLastIndex=-1;
+
+function resetReel(){
+  dgCurrentEl.style.transition='none';
+  dgCurrentEl.style.transform='translate3d(0,0,0)';
+  dgCurrentEl.style.opacity='1';
+  dgCurrentEl.textContent='—';
+  dgNextEl.style.transition='none';
+  dgNextEl.style.transform='translate3d(0,100%,0)';
+  dgNextEl.style.opacity='0';
+  dgNextEl.textContent='';
+}
+
+// Случайный следующий элемент, гарантированно отличный от предыдущего показанного
+// (пока в ленте больше одного элемента) — чтобы каждый раз выпадала другая дата/событие.
+function pickRandomItem(){
+  if(gameItems.length===1)return {item:gameItems[0],index:0};
+  let idx;
+  do{ idx=Math.floor(Math.random()*gameItems.length); }while(idx===dgLastIndex);
+  dgLastIndex=idx;
+  return {item:gameItems[idx],index:idx};
+}
+
+function slideToItem(item,durationMs){
+  const text=(gameMode==='date'?item.date:item.title)||'—';
+  dgNextEl.style.transition='none';
+  dgNextEl.textContent=text;
+  dgNextEl.style.transform='translate3d(0,100%,0)';
+  dgNextEl.style.opacity='0';
+  void dgNextEl.offsetWidth; // форсируем перерасчёт стилей, чтобы transition применился заново
+  const easing='cubic-bezier(.37,0,.63,1)'; // мягкий ease-in-out — без рывков в начале/конце
+  dgCurrentEl.style.transition='transform '+durationMs+'ms '+easing+', opacity '+durationMs+'ms '+easing;
+  dgNextEl.style.transition='transform '+durationMs+'ms '+easing+', opacity '+durationMs+'ms '+easing;
+  dgCurrentEl.style.transform='translate3d(0,-100%,0)';
+  dgCurrentEl.style.opacity='0';
+  dgNextEl.style.transform='translate3d(0,0,0)';
+  dgNextEl.style.opacity='1';
+  const tmp=dgCurrentEl;dgCurrentEl=dgNextEl;dgNextEl=tmp;
+}
+
+window.startRoulette=function(){
+  if(!gameItems.length){alert('Сначала добавьте файл Excel с датами и событиями.');return}
+  if(rouletteTimer)return;
+  const startBtn=document.getElementById('dgStartBtn');
+  startBtn.disabled=true;
+  const startTime=Date.now(),duration=5000;
+  (function tick(){
+    const elapsed=Date.now()-startTime;
+    const progress=Math.min(1,elapsed/duration);
+    // плавное замедление по кубической кривой — быстрый и ровный ход в начале,
+    // без рывков переходящий в мягкое торможение к финалу
+    const eased=1-Math.pow(1-progress,3);
+    const stepGap=80+eased*470; // интервал между сменами: 80мс → 550мс
+    const {item}=pickRandomItem();
+    slideToItem(item,stepGap); // анимация длится ровно до следующего шага — движение непрерывное, без пауз
+    if(elapsed<duration){
+      rouletteTimer=setTimeout(tick,stepGap);
+    }else{
+      lastItem=item;
+      rouletteTimer=null;
+      startBtn.disabled=false;
+    }
+  })();
+};
+
 document.addEventListener('keydown',e=>{
   if(e.key==='Escape'){
+    if(diceGameModal.classList.contains('on')){closeDiceGame();return}
     if(mapOpen){closeMap();return}
     if(panelOpen){closePanel();return}
+    if(gamesOpen){closeGames();return}
     if(document.getElementById('authModal').classList.contains('on')){closeAuth();return}
     if(document.getElementById('myModal').classList.contains('on')){closeMy();return}
   }
@@ -884,7 +1173,6 @@ window.zoom=function(d){
   const center=MIN+(wrap.scrollLeft - SIDE_PADDING + wrap.clientWidth/2)/px();
   zi=n;apply(center);
 }
-window.zoomReset=function(){zi=2;apply((startYear()+MAX)/2)}
 window.clearTrack=function(){
   const label=activeTrack==='world'?'мировую историю':'историю России';
   if(!db[activeTrack].length)return;
@@ -959,13 +1247,30 @@ function delEv(id){
 }
 
 window.openPdf=function(){
-  const evs=db[activeTrack];if(!evs.length){alert('В активной ленте пока нет событий');return}
-  const ys=evs.map(e=>e.year);document.getElementById('pf').value=fmtYear(Math.min(...ys));
-  document.getElementById('pt').value=fmtYear(Math.max(...ys));updatePi();pdfModal.classList.add('on');
+  if(!db.world.length && !db.russia.length){alert('Событий пока нет ни в одной ленте');return}
+  let track=activeTrack;
+  if(!db[track].length) track=(track==='world'?'russia':'world');
+  document.getElementById('pdfTrack').value=track;
+  fillPdfRange(track);
+  pdfModal.classList.add('on');
+}
+function fillPdfRange(track){
+  const evs=db[track];
+  if(!evs.length){
+    document.getElementById('pf').value='';
+    document.getElementById('pt').value='';
+    document.getElementById('pi').textContent='В этой ленте пока нет событий.';
+    return;
+  }
+  const ys=evs.map(e=>e.year);
+  document.getElementById('pf').value=fmtYear(Math.min(...ys));
+  document.getElementById('pt').value=fmtYear(Math.max(...ys));
+  updatePi();
 }
 window.closePdf=function(){pdfModal.classList.remove('on')}
 pdfModal.onclick=e=>{if(e.target===pdfModal)closePdf()}
 document.getElementById('pf').oninput=updatePi;document.getElementById('pt').oninput=updatePi;
+document.getElementById('pdfTrack').onchange=function(){fillPdfRange(this.value)};
 
 function parsePdfDate(v){
   v=String(v).trim().toLowerCase();
@@ -975,21 +1280,23 @@ function parsePdfDate(v){
   return (m[2]&&m[2].includes('до'))?-Math.abs(n):Math.abs(n);
 }
 function updatePi(){
+  const track=document.getElementById('pdfTrack').value;
   const a=parsePdfDate(document.getElementById('pf').value),b=parsePdfDate(document.getElementById('pt').value);
   document.getElementById('pi').textContent=(isNaN(a)||isNaN(b))?'Введите даты, например «2000 до н.э.» и «2026»':
-    'Событий в диапазоне: '+db[activeTrack].filter(e=>e.year>=Math.min(a,b)&&e.year<=Math.max(a,b)).length;
+    'Событий в диапазоне: '+db[track].filter(e=>e.year>=Math.min(a,b)&&e.year<=Math.max(a,b)).length;
 }
 
 window.doExport=function(){
+  const track=document.getElementById('pdfTrack').value;
   let f=parsePdfDate(document.getElementById('pf').value),t=parsePdfDate(document.getElementById('pt').value);
   if(isNaN(f)||isNaN(t)){alert('Укажите оба года');return}
   if(f>t)[f,t]=[t,f];
-  const list=db[activeTrack].filter(e=>e.year>=f&&e.year<=t).sort((a,b)=>a.year-b.year);
+  const list=db[track].filter(e=>e.year>=f&&e.year<=t).sort((a,b)=>a.year-b.year);
   if(!list.length){alert('Нет событий в диапазоне');return}
   const W=1100,H=520,rl=Math.max(1,t-f),PPY=W/rl;
   const area=document.getElementById('pdfArea');area.innerHTML='';
   area.style.cssText='background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact';
-  const h=document.createElement('h1');h.textContent='Лента времени — '+(activeTrack==='world'?'Мировая история':'История России');
+  const h=document.createElement('h1');h.textContent='Лента времени — '+(track==='world'?'Мировая история':'История России');
   h.style.cssText='text-align:center;font-family:Segoe UI,Arial;color:#000;margin:0 0 5px;font-size:21px';
   area.appendChild(h);
   const sub=document.createElement('div');sub.textContent=fmtYear(f)+' — '+fmtYear(t)+' · событий: '+list.length;
